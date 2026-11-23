@@ -24,8 +24,10 @@ import 'session_api.dart';
 /// The feature name the Host announces.
 const deckPanelReadFeature = 'deck.panel.read.v1';
 
-/// Remote endpoints of the two reads on the Host (ds-harness-remote forwards
-/// them to the deck's `deckPanelRead` service; deck ticket #83).
+/// Remote endpoints of the two reads on the Host. PROVISIONAL: neither the
+/// ticket (#84) nor the ADR names the relay-side route; these names are this
+/// client's assumption until ds-harness-remote (#83) defines them. They are
+/// used only here and in the tunnel allow-list, so aligning is a rename.
 const deckTreeEndpoint = 'deckPanel/tree';
 const deckTicketEndpoint = 'deckPanel/ticket';
 
@@ -72,11 +74,20 @@ final class DeckTreeTicket {
   /// Null when the tracker did not say (unknown); empty when it said none.
   final List<DeckBlocker>? blockedBy;
 
-  /// Free to pick up: open, its blockers known, and every one of them closed.
-  /// A blocker whose state the Host did not report counts as still blocking
-  /// and an unknown blocker list is never "free": claiming a ticket is free
-  /// when it is not is the worse mistake.
-  bool get isFree => state != 'CLOSED' && blockedBy != null && blockedBy!.every((b) => b.isClosed);
+  bool get isClosed => state == 'CLOSED';
+
+  /// The blockers still in the way (a blocker whose state is unknown is).
+  List<DeckBlocker> get openBlockers => [
+    for (final b in blockedBy ?? const <DeckBlocker>[])
+      if (!b.isClosed) b,
+  ];
+
+  /// Free to pick up: open, its blockers known, and none of them in the way.
+  /// An unknown blocker list is never "free": claiming a ticket is free when it
+  /// is not is the worse mistake. "Free" here means unblocked only: the deck's
+  /// tree rows carry no assignee, so a ticket someone already claimed still
+  /// reads free.
+  bool get isFree => !isClosed && blockedBy != null && openBlockers.isEmpty;
 }
 
 enum DeckContainerKind { map, spec }
@@ -156,16 +167,12 @@ final class DeckTicketDetail {
     required this.acceptanceCriteria,
     required this.progress,
     required this.blockedBy,
-    this.status,
   });
 
   final String key;
   final int? number;
   final String title;
   final String state;
-
-  /// Triage status, when the tracker has one.
-  final String? status;
   final String url;
   final List<DeckLabel> labels;
   final String body;
@@ -174,23 +181,28 @@ final class DeckTicketDetail {
 
   /// Null when the tracker did not say; empty when it said none.
   final List<DeckBlocker>? blockedBy;
+
+  bool get isClosed => state == 'CLOSED';
 }
 
-DshProtocolException _bad(String what) => DshProtocolException('deck panel reply: $what');
+DshProtocolException _protocolError(String what) => DshProtocolException('deck panel reply: $what');
 
 String _text(JsonMap map, String key) => asString(map[key]) ?? '';
 
 String _required(JsonMap map, String key) {
   final value = asString(map[key]);
-  if (value == null || value.trim().isEmpty) throw _bad('missing $key');
+  if (value == null || value.trim().isEmpty) throw _protocolError('missing $key');
   return value;
 }
 
-List<DeckBlocker>? _blockers(Object? json) =>
-    json is List ? [for (final b in json) ?DeckBlocker._from(b)] : null;
+/// An unreadable blocker fails the whole reply: dropping it would make a
+/// blocked ticket look free.
+List<DeckBlocker>? _blockers(Object? json) => json is List
+    ? [for (final b in json) DeckBlocker._from(b) ?? (throw _protocolError('unreadable blocker'))]
+    : null;
 
 DeckTreeTicket _treeTicket(Object? json) {
-  final map = asMap(json) ?? (throw _bad('ticket row is not an object'));
+  final map = asMap(json) ?? (throw _protocolError('ticket row is not an object'));
   return DeckTreeTicket(
     key: _required(map, 'key'),
     number: asInt(map['number']),
@@ -202,11 +214,11 @@ DeckTreeTicket _treeTicket(Object? json) {
 }
 
 DeckContainer _container(Object? json) {
-  final map = asMap(json) ?? (throw _bad('container is not an object'));
+  final map = asMap(json) ?? (throw _protocolError('container is not an object'));
   final kind = switch (map['kind']) {
     'map' => DeckContainerKind.map,
     'spec' => DeckContainerKind.spec,
-    _ => throw _bad('unknown container kind'),
+    _ => throw _protocolError('unknown container kind'),
   };
   return DeckContainer(
     key: _required(map, 'key'),
@@ -220,14 +232,13 @@ DeckContainer _container(Object? json) {
 }
 
 DeckTicketDetail _detail(Object? json) {
-  final map = asMap(json) ?? (throw _bad('ticket is not an object'));
+  final map = asMap(json) ?? (throw _protocolError('ticket is not an object'));
   final progress = asMapOrEmpty(map['progress']);
   return DeckTicketDetail(
     key: _required(map, 'key'),
     number: asInt(map['number']),
     title: _text(map, 'title'),
     state: _text(map, 'state'),
-    status: asString(map['status']),
     url: _text(map, 'url'),
     labels: [
       for (final l in asListOrEmpty(map['labels']))
@@ -257,7 +268,7 @@ extension DeckPanelApi on DshClient {
   Future<DeckTree> readDeckTree(String sessionId) async {
     final reply = await _deckRead(deckTreeEndpoint, {'sessionId': sessionId}, sessionId);
     final containers = reply['containers'];
-    if (containers is! List) throw _bad('missing containers');
+    if (containers is! List) throw _protocolError('missing containers');
     return DeckTree(
       sessionId: sessionId,
       containers: [for (final c in containers) _container(c)],
@@ -274,8 +285,10 @@ extension DeckPanelApi on DshClient {
   }
 
   Future<JsonMap> _deckRead(String endpoint, Map<String, Object?> args, String sessionId) async {
-    final reply = asMap(await rpc.call(endpoint, args)) ?? (throw _bad('not an object'));
-    if (utf8.encode(jsonEncode(reply)).length > deckReplyMaxBytes) throw _bad('over $deckReplyMaxBytes bytes');
+    final reply = asMap(await rpc.call(endpoint, args)) ?? (throw _protocolError('not an object'));
+    // The ticket asks for an oversized reply to be a failure, and a relay in
+    // between may not have bounded it: measure what actually arrived.
+    if (utf8.encode(jsonEncode(reply)).length > deckReplyMaxBytes) throw _protocolError('over $deckReplyMaxBytes bytes');
     if (reply['ok'] == false) {
       final error = asMapOrEmpty(reply['error']);
       throw DshRemoteException(
@@ -283,8 +296,8 @@ extension DeckPanelApi on DshClient {
         asString(error['message']) ?? 'The deck read failed',
       );
     }
-    if (reply['ok'] != true) throw _bad('no ok flag');
-    if (reply['sessionId'] != sessionId) throw _bad('another session');
+    if (reply['ok'] != true) throw _protocolError('no ok flag');
+    if (reply['sessionId'] != sessionId) throw _protocolError('another session');
     return reply;
   }
 }

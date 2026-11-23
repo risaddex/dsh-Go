@@ -56,7 +56,6 @@ Map<String, Object?> ticketReply({String sessionId = 's1'}) => {
     'number': 84,
     'title': 'Panel',
     'state': 'OPEN',
-    'status': 'ready-for-agent',
     'url': 'https://example.test/84',
     'labels': [
       {'name': 'ready-for-agent', 'color': 'ff0000'},
@@ -169,7 +168,7 @@ void main() {
 
       expect(carrier.sent.map((c) => c.$1), [deckTicketEndpoint]);
       expect(carrier.sent.single.$2, {'sessionId': 's1', 'key': '84'}, reason: 'the session id and the key only');
-      expect((ticket.title, ticket.state, ticket.status), ('Panel', 'OPEN', 'ready-for-agent'));
+      expect((ticket.title, ticket.state, ticket.isClosed), ('Panel', 'OPEN', false));
       expect(ticket.labels.single.name, 'ready-for-agent');
       expect(ticket.body, contains('Build it'));
       expect(ticket.acceptanceCriteria.map((a) => (a.text, a.done)), [('Shows tree', true), ('Shows ticket', false)]);
@@ -216,6 +215,30 @@ void main() {
       }
       carrier.replies[deckTicketEndpoint] = {'ok': true, 'sessionId': 's1', 'ticket': 'x'};
       await expectLater(client.readDeckTicket('s1', '84'), throwsA(isA<DshProtocolException>()));
+    });
+
+    test('an unreadable blocker fails the reply instead of making a blocked ticket look free', () async {
+      carrier.replies[deckTreeEndpoint] = treeReply(
+        containers: [
+          {
+            'key': '1',
+            'kind': 'map',
+            'title': 'm',
+            'state': 'OPEN',
+            'tickets': [
+              {
+                'key': '2',
+                'title': 'a',
+                'state': 'OPEN',
+                'blockedBy': [
+                  {'title': 'no key'},
+                ],
+              },
+            ],
+          },
+        ],
+      );
+      await expectLater(client.readDeckTree('s1'), throwsA(isA<DshProtocolException>()));
     });
 
     test('a reply over the deck byte bound is refused', () async {

@@ -29,14 +29,14 @@ final sessionPluginPlanProvider = Provider.autoDispose.family<SeatPlan, String>(
   final deck = seated.items.where(isDeck).toList();
   final tabs = deck.isEmpty ? seated : SeatPlan(seated.seat, seated.items.where((i) => !isDeck(i)).toList());
   final views = ref.watch(seatPlanProvider(SessionPluginsTab.viewsFor(sessionId)));
-  final SeatPlan rest;
+  final SeatPlan others;
   if (!tabs.isEmpty) {
-    rest = views.isEmpty ? tabs : SeatPlan(tabs.seat, [...tabs.items, ...views.items]);
+    others = views.isEmpty ? tabs : SeatPlan(tabs.seat, [...tabs.items, ...views.items]);
   } else {
     final panels = ref.watch(seatPlanProvider(const SeatRequest(slot: Slots.main, placement: SeatPlacement.page)));
-    rest = views.isEmpty ? panels : SeatPlan(views.seat, [...views.items, ...panels.items]);
+    others = views.isEmpty ? panels : SeatPlan(views.seat, [...views.items, ...panels.items]);
   }
-  return deck.isEmpty ? rest : SeatPlan(seated.seat, [...deck, ...rest.items]);
+  return deck.isEmpty ? others : SeatPlan(seated.seat, [...deck, ...others.items]);
 });
 
 class SessionPluginsTab extends ConsumerWidget {

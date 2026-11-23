@@ -8,6 +8,7 @@
 import 'dart:async';
 
 import 'package:dsh_app/plugins/deck/deck_panel_state.dart';
+import 'package:dsh_app/plugins/native/native_model.dart' show NativePanel;
 import 'package:dsh_app/plugins/seams/seams.dart';
 import 'package:dsh_app/state/connection_state.dart';
 import 'package:dsh_app/state/engine_settings_state.dart';
@@ -76,7 +77,6 @@ const detail = DeckTicketDetail(
   number: 84,
   title: 'Show the panel',
   state: 'OPEN',
-  status: 'ready-for-agent',
   url: '',
   labels: [DeckLabel(name: 'enhancement', color: '00ff00')],
   body: 'Render the tree and the ticket.',
@@ -245,6 +245,48 @@ void main() {
       expect(find.byType(Text), findsNothing, reason: 'the tab has nothing to say');
     });
 
+    testWidgets('beside other entries the deck is the first row and opens its own page; global panels stay', (
+      tester,
+    ) async {
+      usePhoneView(tester);
+      final reader = FakeDeckReader();
+      final inventory = SeatInventory(
+        tier: ClientInventoryTier.bridge,
+        routeGuard: true,
+        webReachable: true,
+        deckPanel: true,
+        occupancy: {
+          Slots.rightPaneTab: [const SlotOccupant(slot: Slots.rightPaneTab, package: 'web-only', cell: 'notes')],
+        },
+        nativePanels: const [
+          NativePanel(package: 'p', id: 'board', title: '看板', placement: {'features'}),
+        ],
+      );
+      await tester.pumpWidget(
+        testApp(
+          const Scaffold(body: SessionPluginsTab(sessionId: 's1')),
+          overrides: [
+            ...nativeOverrides(FakeBridge()),
+            deckPanelReaderProvider.overrideWithValue(reader),
+            seatInventoryProvider.overrideWith((ref) => inventory),
+            islandBudgetProvider.overrideWithValue(const NoIslandBudget()),
+          ],
+        ),
+      );
+      await pumpFrames(tester);
+      // A list: the deck row first, the other tab's entry after it.
+      expect(find.text('Deck'), findsOneWidget);
+      expect(find.text('web-only'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('Deck')).dy, lessThan(tester.getTopLeft(find.text('web-only')).dy));
+      expect(reader.treeCalls, isEmpty, reason: 'nothing is read until the page opens');
+
+      await tester.tap(find.text('Deck'));
+      await pumpFrames(tester);
+      expect(find.byType(DeckPanelView), findsOneWidget);
+      expect(reader.treeCalls, ['s1']);
+      expect(find.text('#70 Deck over remote'), findsOneWidget);
+    });
+
     testWidgets('opening reads the tree once, for this session id only', (tester) async {
       usePhoneView(tester);
       final reader = FakeDeckReader();
@@ -302,7 +344,6 @@ void main() {
       expect(reader.ticketCalls, [('s1', '84')]);
       expect(find.text('Render the tree and the ticket.'), findsOneWidget);
       expect(find.text('enhancement'), findsOneWidget);
-      expect(find.text('ready-for-agent'), findsOneWidget);
       expect(find.text('Shows the tree'), findsOneWidget);
       expect(find.text('Client layer done'), findsOneWidget);
       expect(find.text('40%'), findsOneWidget);
@@ -366,6 +407,7 @@ void main() {
       await pumpFrames(tester);
       expect(find.text('无法读取这张票'), findsOneWidget);
       expect(find.text('无法读取 Deck'), findsNothing, reason: 'the tree is not what failed');
+      expect(find.text('重试'), findsNothing, reason: 'Retry belongs to the tree; Back leaves the detail');
 
       await tester.tap(find.text('返回'));
       await pumpFrames(tester);

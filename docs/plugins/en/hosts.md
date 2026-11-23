@@ -6,7 +6,9 @@ dsh-go connects to three kinds of host: the on-device engine, SSH hosts and rela
 |---|---|---|---|
 | On-device engine | ✅ | ✅ the bridge ships with the app's runtime | ✅ |
 | SSH host | ✅ | Phase 2 (the bridge cannot be installed on SSH hosts yet) | ✅ |
-| Relay host | ✅ (with the log) | ❌ the relay does not pass `/dsh-go/*` | ❌ |
+| Relay host | ✅ (with the log) | ❌ the relay does not pass `/dsh-go/*` (the deck's read-only panel is the one exception, see below) | ❌ |
+
+**The deck's read-only panel on a relay host**: the relay does not forward `/dsh-go/*`, but a DSH Remote host can announce `deck.panel.read.v1` in the capability negotiation. The app shows the deck panel in a chat's details › Plugins only when the connected host announced it, and sends only two reads (`tree`, `ticket`), carrying the session id and no path. Hosts that did not announce it, the on-device engine and SSH hosts behave as before and show no empty page or error row.
 
 ## Installing a local plugin
 

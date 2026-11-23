@@ -34,7 +34,7 @@ class _DeckPanelViewState extends ConsumerState<DeckPanelView> {
   AsyncValue<DeckTree> _tree = const AsyncLoading();
 
   /// The ticket whose detail is showing; null shows the tree.
-  String? _open;
+  String? _openKey;
   AsyncValue<DeckTicketDetail> _ticket = const AsyncLoading();
 
   /// Which read a reply belongs to: a reply that is not the latest one of its
@@ -52,7 +52,7 @@ class _DeckPanelViewState extends ConsumerState<DeckPanelView> {
   void didUpdateWidget(DeckPanelView old) {
     super.didUpdateWidget(old);
     if (old.sessionId != widget.sessionId) {
-      _open = null;
+      _openKey = null;
       _ticketRun++;
       _startTree();
     }
@@ -79,7 +79,7 @@ class _DeckPanelViewState extends ConsumerState<DeckPanelView> {
   void _openTicket(String key) {
     final run = ++_ticketRun;
     setState(() {
-      _open = key;
+      _openKey = key;
       _ticket = const AsyncLoading();
     });
     _readTicket(key, run);
@@ -98,14 +98,14 @@ class _DeckPanelViewState extends ConsumerState<DeckPanelView> {
   }
 
   void _back() => setState(() {
-    _open = null;
+    _openKey = null;
     _ticketRun++;
   });
 
   @override
   Widget build(BuildContext context) {
     if (ref.watch(deckPanelReaderProvider) == null) return const SizedBox.shrink();
-    final open = _open;
+    final open = _openKey;
     return PopScope(
       canPop: open == null,
       onPopInvokedWithResult: (didPop, _) {
@@ -155,13 +155,9 @@ class _DeckPanelViewState extends ConsumerState<DeckPanelView> {
       ),
       _ticket.when(
         loading: () => const _Loading(),
-        // A ticket failure stays here: the tree behind it is kept.
-        error: (_, _) => EmptyView(
-          icon: AppIcons.error,
-          title: l10n.deckPanelTicketError,
-          actionLabel: l10n.deckPanelRetry,
-          onAction: () => _openTicket(key),
-        ),
+        // A ticket failure stays here and the tree behind it is kept; Back is
+        // the way out.
+        error: (_, _) => EmptyView(icon: AppIcons.error, title: l10n.deckPanelTicketError),
         data: (ticket) => _TicketBody(ticket: ticket),
       ),
     ];
@@ -186,8 +182,8 @@ class _Loading extends StatelessWidget {
 /// `84` reads as `#84`; a key like `OMB-923` is already what people say.
 String _shortKey(String key) => RegExp(r'^\d+$').hasMatch(key) ? '#$key' : key;
 
-String _stateLabel(BuildContext context, String state) =>
-    state == 'CLOSED' ? context.l10n.deckPanelStateClosed : context.l10n.deckPanelStateOpen;
+String _stateLabel(BuildContext context, {required bool closed}) =>
+    closed ? context.l10n.deckPanelStateClosed : context.l10n.deckPanelStateOpen;
 
 class _TreeBody extends StatelessWidget {
   const _TreeBody({required this.tree, required this.onOpen});
@@ -260,20 +256,17 @@ class _TicketRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final blocking = [
-      for (final b in ticket.blockedBy ?? const <DeckBlocker>[])
-        if (!b.isClosed) _shortKey(b.key),
-    ];
+    final blocking = [for (final b in ticket.openBlockers) _shortKey(b.key)];
     final String? note = ticket.isFree
         ? l10n.deckPanelFree
-        : (ticket.state != 'CLOSED' && blocking.isNotEmpty ? l10n.deckPanelBlockedBy(blocking.join(', ')) : null);
+        : (!ticket.isClosed && blocking.isNotEmpty ? l10n.deckPanelBlockedBy(blocking.join(', ')) : null);
     return ListPageRow(
       title: '${_shortKey(ticket.key)} ${ticket.title}',
       titleMaxLines: 2,
       subtitle: note,
       subtitleMaxLines: 2,
       subtitleColor: ticket.isFree ? DshColors.of(context).success : null,
-      meta: _stateLabel(context, ticket.state),
+      meta: _stateLabel(context, closed: ticket.isClosed),
       onTap: () => onOpen(ticket.key),
     );
   }
@@ -288,7 +281,6 @@ class _TicketBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    final status = ticket.status;
     final percent = ticket.progress.percent;
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
@@ -302,10 +294,9 @@ class _TicketBody extends StatelessWidget {
             runSpacing: 8,
             children: [
               StatusChip(
-                tone: ticket.state == 'CLOSED' ? StatusTone.idle : StatusTone.ok,
-                label: _stateLabel(context, ticket.state),
+                tone: ticket.isClosed ? StatusTone.idle : StatusTone.ok,
+                label: _stateLabel(context, closed: ticket.isClosed),
               ),
-              if (status != null && status.isNotEmpty) StatusChip(tone: StatusTone.idle, label: status),
             ],
           ),
           if (ticket.labels.isNotEmpty)
@@ -375,7 +366,7 @@ class _TicketBody extends StatelessWidget {
                               [
                                 _shortKey(b.key),
                                 if (b.title case final t? when t.isNotEmpty) t,
-                                if (b.state case final s?) '(${_stateLabel(context, s)})',
+                                if (b.state != null) '(${_stateLabel(context, closed: b.isClosed)})',
                               ].join(' '),
                             ),
                           ),
