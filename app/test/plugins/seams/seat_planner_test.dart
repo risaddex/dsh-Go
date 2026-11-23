@@ -396,6 +396,7 @@ void main() {
         'schema-config',
         'cordis',
         'dsh-ui-panel',
+        'deck-panel',
         'pet',
       ]);
     });

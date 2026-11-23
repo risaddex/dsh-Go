@@ -7392,6 +7392,77 @@ class L10nZh extends L10n {
   String get companionRawEraseGone => '这次来不及了，原话还留着。';
 
   @override
+  String get deckPanelTitle => 'Deck';
+
+  @override
+  String get deckPanelRefresh => '刷新';
+
+  @override
+  String get deckPanelRetry => '重试';
+
+  @override
+  String get deckPanelBack => '返回';
+
+  @override
+  String get deckPanelLoading => '正在读取 Deck…';
+
+  @override
+  String get deckPanelEmpty => '这个工作区没有打开的地图或规格';
+
+  @override
+  String get deckPanelTreeError => '无法读取 Deck';
+
+  @override
+  String get deckPanelTicketError => '无法读取这张票';
+
+  @override
+  String get deckPanelTruncated => '这不是完整的树：Deck 在上限处截断了结果。';
+
+  @override
+  String get deckPanelMap => '地图';
+
+  @override
+  String get deckPanelSpec => '规格';
+
+  @override
+  String get deckPanelFree => '可接手';
+
+  @override
+  String deckPanelBlockedBy(String keys) {
+    return '被 $keys 阻塞';
+  }
+
+  @override
+  String get deckPanelStateOpen => '开放';
+
+  @override
+  String get deckPanelStateClosed => '已关闭';
+
+  @override
+  String get deckPanelLabels => '标签';
+
+  @override
+  String get deckPanelDescription => '正文';
+
+  @override
+  String get deckPanelNoDescription => '没有正文';
+
+  @override
+  String get deckPanelCriteria => '验收标准';
+
+  @override
+  String get deckPanelProgress => '进度';
+
+  @override
+  String get deckPanelNoProgress => '还没有写进度';
+
+  @override
+  String get deckPanelBlockers => '阻塞者';
+
+  @override
+  String get deckPanelNoBlockers => '没有阻塞者';
+
+  @override
   String get automaticDiagnosticsRecover => '恢复本地记录';
 
   @override

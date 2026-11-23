@@ -5,6 +5,7 @@
 import 'package:dsh_client/dsh_client.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../l10n/l10n.dart';
 import '../../ui/engine_settings/engine_settings_page.dart' show isPluginForm;
 import '../../ui/engine_settings/schema_form.dart' show schemaSections;
 import '../native/native_model.dart' show NativePanel;
@@ -24,9 +25,16 @@ class SeatInventory {
     this.routeGuard = false,
     this.webReachable = false,
     this.nativePanels = const [],
+    this.deckPanel = false,
   });
 
   static const empty = SeatInventory();
+
+  /// The deck's own read-only panel (deck.panel.read.v1) is not a plugin
+  /// declaration: the host announced a feature, so the app seats it itself,
+  /// under the deck's package name.
+  static const deckPackage = 'dsh-skills-deck';
+  static const deckPanelCell = 'deck-read:panel';
 
   /// Cells of the native panels' occupants: `dsh-go:<panel id>`.
   static const nativeCellPrefix = 'dsh-go:';
@@ -43,6 +51,7 @@ class SeatInventory {
     bool webReachable = false,
     String locale = 'zh',
     List<NativePanel> nativePanels = const [],
+    bool deckPanel = false,
   }) {
     return SeatInventory(
       tier: inventory.tier,
@@ -90,6 +99,7 @@ class SeatInventory {
       routeGuard: inventory.routeGuard,
       webReachable: webReachable,
       nativePanels: nativePanels,
+      deckPanel: deckPanel,
     );
   }
 
@@ -118,6 +128,10 @@ class SeatInventory {
   /// occupy 对话详情's 「插件」 tab (`session.tab`) and 全部功能 (`features`)
   /// as cells `dsh-go:<id>`, ahead of their package's web entries.
   final List<NativePanel> nativePanels;
+
+  /// The connected host announced `deck.panel.read.v1`: the deck panel
+  /// occupies 对话详情's 「插件」 tab.
+  final bool deckPanel;
 
   /// The native panel behind [package]'s [cell], if it is one.
   NativePanel? nativePanel(String package, String cell) {
@@ -149,7 +163,13 @@ class SeatInventory {
     ];
   }
 
-  List<SlotOccupant> _native(String slot) {
+  List<SlotOccupant> _native(String slot) => [..._nativePanelOccupants(slot), ..._deckOccupant(slot)];
+
+  List<SlotOccupant> _deckOccupant(String slot) => deckPanel && slot == Slots.rightPaneTab
+      ? [SlotOccupant(slot: slot, package: deckPackage, cell: deckPanelCell, label: appL10n.deckPanelTitle)]
+      : const [];
+
+  List<SlotOccupant> _nativePanelOccupants(String slot) {
     if (nativePanels.isEmpty) return const [];
     final placement = switch (slot) {
       Slots.rightPaneTab => DshGoPanel.sessionTab,

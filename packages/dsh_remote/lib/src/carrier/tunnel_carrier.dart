@@ -122,6 +122,11 @@ const Set<String> harnessRemoteAllowlist = {
   'terminal/close',
   'terminal/follow',
   'terminal/retain',
+  // The deck's read-only panel (feature `deck.panel.read.v1`): exactly its two
+  // reads, each scoped by a session id. A Host serves them only while it
+  // announces the feature; the App asks only then (`supportsDeckPanel`).
+  'deckPanel/tree',
+  'deckPanel/ticket',
 };
 
 /// Endpoints whose binary results arrive as a base64 `data` string over the

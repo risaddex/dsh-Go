@@ -21,13 +21,22 @@ import 'seat_links.dart';
 /// remain alongside those views; they keep their root scope even though
 /// this entry lives inside a conversation.
 final sessionPluginPlanProvider = Provider.autoDispose.family<SeatPlan, String>((ref, sessionId) {
-  final tabs = ref.watch(seatPlanProvider(SessionPluginsTab.requestFor(sessionId)));
+  final seated = ref.watch(seatPlanProvider(SessionPluginsTab.requestFor(sessionId)));
+  // The deck's own panel (deck.panel.read.v1) sits in the tab but is not a
+  // plugin's tab: it must not make the global panels below disappear, so it is
+  // set aside, the rule below runs on the other tabs, and the deck goes first.
+  bool isDeck(SeatItem i) => i.occupant.cell == SeatInventory.deckPanelCell;
+  final deck = seated.items.where(isDeck).toList();
+  final tabs = deck.isEmpty ? seated : SeatPlan(seated.seat, seated.items.where((i) => !isDeck(i)).toList());
   final views = ref.watch(seatPlanProvider(SessionPluginsTab.viewsFor(sessionId)));
+  final SeatPlan others;
   if (!tabs.isEmpty) {
-    return views.isEmpty ? tabs : SeatPlan(tabs.seat, [...tabs.items, ...views.items]);
+    others = views.isEmpty ? tabs : SeatPlan(tabs.seat, [...tabs.items, ...views.items]);
+  } else {
+    final panels = ref.watch(seatPlanProvider(const SeatRequest(slot: Slots.main, placement: SeatPlacement.page)));
+    others = views.isEmpty ? panels : SeatPlan(views.seat, [...views.items, ...panels.items]);
   }
-  final panels = ref.watch(seatPlanProvider(const SeatRequest(slot: Slots.main, placement: SeatPlacement.page)));
-  return views.isEmpty ? panels : SeatPlan(views.seat, [...views.items, ...panels.items]);
+  return deck.isEmpty ? others : SeatPlan(seated.seat, [...deck, ...others.items]);
 });
 
 class SessionPluginsTab extends ConsumerWidget {

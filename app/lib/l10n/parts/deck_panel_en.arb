@@ -1,0 +1,32 @@
+{
+  "deckPanelTitle": "Deck",
+  "deckPanelRefresh": "Refresh",
+  "deckPanelRetry": "Retry",
+  "deckPanelBack": "Back",
+  "deckPanelLoading": "Reading the deck…",
+  "deckPanelEmpty": "No open maps or specs in this workspace",
+  "deckPanelTreeError": "Couldn’t read the deck",
+  "deckPanelTicketError": "Couldn’t read this ticket",
+  "deckPanelTruncated": "This is not the whole tree: the deck cut it at its limit.",
+  "deckPanelMap": "Map",
+  "deckPanelSpec": "Spec",
+  "deckPanelFree": "Free to pick up",
+  "deckPanelBlockedBy": "Blocked by {keys}",
+  "deckPanelStateOpen": "Open",
+  "deckPanelStateClosed": "Closed",
+  "deckPanelLabels": "Labels",
+  "deckPanelDescription": "Description",
+  "deckPanelNoDescription": "No description",
+  "deckPanelCriteria": "Acceptance criteria",
+  "deckPanelProgress": "Progress",
+  "deckPanelNoProgress": "No progress written yet",
+  "deckPanelBlockers": "Blockers",
+  "deckPanelNoBlockers": "No blockers",
+  "@deckPanelBlockedBy": {
+    "placeholders": {
+      "keys": {
+        "type": "String"
+      }
+    }
+  }
+}
