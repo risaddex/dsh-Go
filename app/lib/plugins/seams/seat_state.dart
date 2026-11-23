@@ -15,6 +15,7 @@ import '../../ui/plugins/islands/island_host.dart' show liveIslandBudgetProvider
 import '../../ui/plugins/seats/seat_island.dart';
 import '../../ui/plugins/seats/seat_links.dart';
 import '../../ui_config/ui_config_state.dart' show uiConfigProvider, uiSeatOverridesProvider;
+import '../deck/deck_panel_state.dart' show deckPanelReaderProvider;
 import '../native/native_state.dart' show nativePanelsProvider;
 import 'seat_inventory.dart';
 import 'seat_models.dart';
@@ -66,6 +67,7 @@ final seatInventoryProvider = Provider.autoDispose<SeatInventory?>((ref) {
     namespaces: namespaces,
     webReachable: client.canReadWebBoot,
     nativePanels: ref.watch(nativePanelsProvider),
+    deckPanel: ref.watch(deckPanelReaderProvider.select((r) => r != null)),
   );
 });
 

@@ -13728,6 +13728,144 @@ abstract class L10n {
   /// **'这次来不及了，原话还留着。'**
   String get companionRawEraseGone;
 
+  /// No description provided for @deckPanelTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'Deck'**
+  String get deckPanelTitle;
+
+  /// No description provided for @deckPanelRefresh.
+  ///
+  /// In zh, this message translates to:
+  /// **'刷新'**
+  String get deckPanelRefresh;
+
+  /// No description provided for @deckPanelRetry.
+  ///
+  /// In zh, this message translates to:
+  /// **'重试'**
+  String get deckPanelRetry;
+
+  /// No description provided for @deckPanelBack.
+  ///
+  /// In zh, this message translates to:
+  /// **'返回'**
+  String get deckPanelBack;
+
+  /// No description provided for @deckPanelLoading.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在读取 Deck…'**
+  String get deckPanelLoading;
+
+  /// No description provided for @deckPanelEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'这个工作区没有打开的地图或规格'**
+  String get deckPanelEmpty;
+
+  /// No description provided for @deckPanelTreeError.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法读取 Deck'**
+  String get deckPanelTreeError;
+
+  /// No description provided for @deckPanelTicketError.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法读取这张票'**
+  String get deckPanelTicketError;
+
+  /// No description provided for @deckPanelTruncated.
+  ///
+  /// In zh, this message translates to:
+  /// **'这不是完整的树：Deck 在上限处截断了结果。'**
+  String get deckPanelTruncated;
+
+  /// No description provided for @deckPanelMap.
+  ///
+  /// In zh, this message translates to:
+  /// **'地图'**
+  String get deckPanelMap;
+
+  /// No description provided for @deckPanelSpec.
+  ///
+  /// In zh, this message translates to:
+  /// **'规格'**
+  String get deckPanelSpec;
+
+  /// No description provided for @deckPanelFree.
+  ///
+  /// In zh, this message translates to:
+  /// **'可接手'**
+  String get deckPanelFree;
+
+  /// No description provided for @deckPanelBlockedBy.
+  ///
+  /// In zh, this message translates to:
+  /// **'被 {keys} 阻塞'**
+  String deckPanelBlockedBy(String keys);
+
+  /// No description provided for @deckPanelStateOpen.
+  ///
+  /// In zh, this message translates to:
+  /// **'开放'**
+  String get deckPanelStateOpen;
+
+  /// No description provided for @deckPanelStateClosed.
+  ///
+  /// In zh, this message translates to:
+  /// **'已关闭'**
+  String get deckPanelStateClosed;
+
+  /// No description provided for @deckPanelLabels.
+  ///
+  /// In zh, this message translates to:
+  /// **'标签'**
+  String get deckPanelLabels;
+
+  /// No description provided for @deckPanelDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'正文'**
+  String get deckPanelDescription;
+
+  /// No description provided for @deckPanelNoDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有正文'**
+  String get deckPanelNoDescription;
+
+  /// No description provided for @deckPanelCriteria.
+  ///
+  /// In zh, this message translates to:
+  /// **'验收标准'**
+  String get deckPanelCriteria;
+
+  /// No description provided for @deckPanelProgress.
+  ///
+  /// In zh, this message translates to:
+  /// **'进度'**
+  String get deckPanelProgress;
+
+  /// No description provided for @deckPanelNoProgress.
+  ///
+  /// In zh, this message translates to:
+  /// **'还没有写进度'**
+  String get deckPanelNoProgress;
+
+  /// No description provided for @deckPanelBlockers.
+  ///
+  /// In zh, this message translates to:
+  /// **'阻塞者'**
+  String get deckPanelBlockers;
+
+  /// No description provided for @deckPanelNoBlockers.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有阻塞者'**
+  String get deckPanelNoBlockers;
+
   /// No description provided for @automaticDiagnosticsRecover.
   ///
   /// In zh, this message translates to:

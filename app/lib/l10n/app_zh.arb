@@ -4415,6 +4415,36 @@
   "companionRawErased": "好，原话也删掉了。",
   "companionRawKept": "好，原话留着。",
   "companionRawEraseGone": "这次来不及了，原话还留着。",
+  "deckPanelTitle": "Deck",
+  "deckPanelRefresh": "刷新",
+  "deckPanelRetry": "重试",
+  "deckPanelBack": "返回",
+  "deckPanelLoading": "正在读取 Deck…",
+  "deckPanelEmpty": "这个工作区没有打开的地图或规格",
+  "deckPanelTreeError": "无法读取 Deck",
+  "deckPanelTicketError": "无法读取这张票",
+  "deckPanelTruncated": "这不是完整的树：Deck 在上限处截断了结果。",
+  "deckPanelMap": "地图",
+  "deckPanelSpec": "规格",
+  "deckPanelFree": "可接手",
+  "deckPanelBlockedBy": "被 {keys} 阻塞",
+  "@deckPanelBlockedBy": {
+    "placeholders": {
+      "keys": {
+        "type": "String"
+      }
+    }
+  },
+  "deckPanelStateOpen": "开放",
+  "deckPanelStateClosed": "已关闭",
+  "deckPanelLabels": "标签",
+  "deckPanelDescription": "正文",
+  "deckPanelNoDescription": "没有正文",
+  "deckPanelCriteria": "验收标准",
+  "deckPanelProgress": "进度",
+  "deckPanelNoProgress": "还没有写进度",
+  "deckPanelBlockers": "阻塞者",
+  "deckPanelNoBlockers": "没有阻塞者",
   "automaticDiagnosticsRecover": "恢复本地记录",
   "automaticDiagnosticsRecoverHint": "仅在本机恢复分析记录，跳过已留存故障，不重新发送旧请求。",
   "automaticDiagnosticsTitle": "自动故障分析",

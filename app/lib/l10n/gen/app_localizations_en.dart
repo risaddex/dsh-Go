@@ -7854,6 +7854,77 @@ class L10nEn extends L10n {
   String get companionRawEraseGone => 'Too late this time; the original words are still here.';
 
   @override
+  String get deckPanelTitle => 'Deck';
+
+  @override
+  String get deckPanelRefresh => 'Refresh';
+
+  @override
+  String get deckPanelRetry => 'Retry';
+
+  @override
+  String get deckPanelBack => 'Back';
+
+  @override
+  String get deckPanelLoading => 'Reading the deck…';
+
+  @override
+  String get deckPanelEmpty => 'No open maps or specs in this workspace';
+
+  @override
+  String get deckPanelTreeError => 'Couldn’t read the deck';
+
+  @override
+  String get deckPanelTicketError => 'Couldn’t read this ticket';
+
+  @override
+  String get deckPanelTruncated => 'This is not the whole tree: the deck cut it at its limit.';
+
+  @override
+  String get deckPanelMap => 'Map';
+
+  @override
+  String get deckPanelSpec => 'Spec';
+
+  @override
+  String get deckPanelFree => 'Free to pick up';
+
+  @override
+  String deckPanelBlockedBy(String keys) {
+    return 'Blocked by $keys';
+  }
+
+  @override
+  String get deckPanelStateOpen => 'Open';
+
+  @override
+  String get deckPanelStateClosed => 'Closed';
+
+  @override
+  String get deckPanelLabels => 'Labels';
+
+  @override
+  String get deckPanelDescription => 'Description';
+
+  @override
+  String get deckPanelNoDescription => 'No description';
+
+  @override
+  String get deckPanelCriteria => 'Acceptance criteria';
+
+  @override
+  String get deckPanelProgress => 'Progress';
+
+  @override
+  String get deckPanelNoProgress => 'No progress written yet';
+
+  @override
+  String get deckPanelBlockers => 'Blockers';
+
+  @override
+  String get deckPanelNoBlockers => 'No blockers';
+
+  @override
   String get automaticDiagnosticsRecover => 'Recover local records';
 
   @override
