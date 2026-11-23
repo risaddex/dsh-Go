@@ -29,6 +29,7 @@ export 'src/companion_signals_api.dart';
 export 'src/connection.dart';
 export 'src/cordis_api.dart';
 export 'src/cot_translation_api.dart';
+export 'src/deck_panel_api.dart';
 export 'src/deliverables.dart';
 export 'src/dsh_go_api.dart';
 export 'src/dsbot_api.dart';
