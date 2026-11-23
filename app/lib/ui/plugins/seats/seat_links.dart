@@ -1,6 +1,7 @@
 // The "open in DSH Web" end of the plugin seats (docs/design/plugin-seams.md
 // §2): where an occupant lands in DSH Web, what it is called, and the entry a
-// seat draws for it when it can't be a native form or an island in place.
+// seat draws for it when it can't be a native form or an island in place. Also
+// the seat's drawing of the deck's own panel, which the app seats itself.
 
 import 'package:dsh_client/dsh_client.dart' show PluginBundle;
 import 'package:flutter/material.dart';
@@ -16,8 +17,14 @@ import '../../engine_settings/schema_form.dart' show SchemaUnsupportedField;
 import '../../theme/app_icons.dart';
 import '../../web/dsh_web_launcher.dart';
 import '../../web/web_target.dart';
+import '../deck/deck_panel_view.dart';
 import 'plugin_seat_page.dart';
 import 'seat_island.dart' show seatIslandLabels;
+
+/// The deck's read-only panel for [sessionId]'s seat. It lives behind
+/// [SeatRenderers.deckPanel] because the adapter that seats it is outside ui/
+/// and nothing outside ui/ may import ui/.
+Widget deckPanelSeat(BuildContext context, String sessionId) => DeckPanelView(sessionId: sessionId);
 
 /// Opens DSH Web on a target (in 网页模式 the web home itself goes there);
 /// tests swap it for a recorder.

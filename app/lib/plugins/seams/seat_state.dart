@@ -118,22 +118,27 @@ typedef IslandSeatBuilder = Widget Function(
 /// Draws one "open in DSH Web" entry.
 typedef WebLinkSeatBuilder = Widget Function(BuildContext context, SeatContext seat, SeatItem item);
 
+/// Draws the deck's read-only panel for a conversation.
+typedef DeckPanelSeatBuilder = Widget Function(BuildContext context, String sessionId);
+
 /// How seats draw what is not native. Unset parts draw nothing: an island
-/// shows its fallback, a web entry shows nothing.
+/// shows its fallback, a web entry and the deck panel show nothing.
 @immutable
 class SeatRenderers {
-  const SeatRenderers({this.island, this.webLink});
+  const SeatRenderers({this.island, this.webLink, this.deckPanel});
 
   final IslandSeatBuilder? island;
   final WebLinkSeatBuilder? webLink;
+  final DeckPanelSeatBuilder? deckPanel;
 }
 
 /// `island` → the islands runtime's `IslandView`, `webLink` → the entry that
-/// opens DSH Web at the occupant.
+/// opens DSH Web at the occupant, `deckPanel` → the deck's read-only panel.
 final seatRenderersProvider = Provider<SeatRenderers>(
   (ref) => SeatRenderers(
     island: (context, spec, items, fallback) => SeatIslandView(spec: spec, items: items, fallback: fallback),
     webLink: (context, seat, item) => SeatWebLink(seat: seat, item: item),
+    deckPanel: deckPanelSeat,
   ),
 );
 
