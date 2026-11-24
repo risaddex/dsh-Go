@@ -24,12 +24,17 @@ import 'session_api.dart';
 /// The feature name the Host announces.
 const deckPanelReadFeature = 'deck.panel.read.v1';
 
-/// Remote endpoints of the two reads on the Host. PROVISIONAL: neither the
-/// ticket (#84) nor the ADR names the relay-side route; these names are this
-/// client's assumption until ds-harness-remote (#83) defines them. They are
-/// used only here and in the tunnel allow-list, so aligning is a rename.
-const deckTreeEndpoint = 'deckPanel/tree';
-const deckTicketEndpoint = 'deckPanel/ticket';
+/// The one RPC method that carries both deck reads on the Host, and the value
+/// of its `operation` field that selects each of them. This is the contract
+/// ds-harness-remote (#83) implements and documents (its
+/// `docs/protocol.md`, section "Read-only deck panel"): a single method with
+/// `{operation: 'tree', sessionId}` or `{operation: 'ticket', sessionId, key}`.
+/// Do not split it into one endpoint per read again: a Host that only knows
+/// this method answers `METHOD_NOT_ALLOWED` to any other name, which is how the
+/// first real-device run of #75 found the mismatch.
+const deckPanelReadEndpoint = 'deck.panel.read';
+const deckTreeOperation = 'tree';
+const deckTicketOperation = 'ticket';
 
 /// The deck's own bound for one whole reply (`DECK_READ_LIMITS.maxProjectionBytes`).
 const deckReplyMaxBytes = 262144;
@@ -266,7 +271,7 @@ extension DeckPanelApi on DshClient {
 
   /// `tree`: the open maps and specs of [sessionId]'s workspace.
   Future<DeckTree> readDeckTree(String sessionId) async {
-    final reply = await _deckRead(deckTreeEndpoint, {'sessionId': sessionId}, sessionId);
+    final reply = await _deckRead({'operation': deckTreeOperation, 'sessionId': sessionId}, sessionId);
     final containers = reply['containers'];
     if (containers is! List) throw _protocolError('missing containers');
     return DeckTree(
@@ -280,12 +285,15 @@ extension DeckPanelApi on DshClient {
 
   /// `ticket`: one ticket's detail by its tracker [key].
   Future<DeckTicketDetail> readDeckTicket(String sessionId, String key) async {
-    final reply = await _deckRead(deckTicketEndpoint, {'sessionId': sessionId, 'key': key}, sessionId);
+    final reply = await _deckRead(
+      {'operation': deckTicketOperation, 'sessionId': sessionId, 'key': key},
+      sessionId,
+    );
     return _detail(reply['ticket']);
   }
 
-  Future<JsonMap> _deckRead(String endpoint, Map<String, Object?> args, String sessionId) async {
-    final reply = asMap(await rpc.call(endpoint, args)) ?? (throw _protocolError('not an object'));
+  Future<JsonMap> _deckRead(Map<String, Object?> args, String sessionId) async {
+    final reply = asMap(await rpc.call(deckPanelReadEndpoint, args)) ?? (throw _protocolError('not an object'));
     // The ticket asks for an oversized reply to be a failure, and a relay in
     // between may not have bounded it: measure what actually arrived.
     if (utf8.encode(jsonEncode(reply)).length > deckReplyMaxBytes) throw _protocolError('over $deckReplyMaxBytes bytes');

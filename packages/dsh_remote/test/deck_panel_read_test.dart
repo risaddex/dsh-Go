@@ -39,32 +39,29 @@ void main() {
       'ok': true,
       'value': {'items': <Object?>[]},
     };
-    host.handlers['deckPanel/tree'] = (args) {
-      calls.add(('deckPanel/tree', args));
-      return {
-        'ok': true,
-        'value': {'ok': true, 'sessionId': 's1', 'containers': <Object?>[], 'truncated': false},
-      };
-    };
-    host.handlers['deckPanel/ticket'] = (args) {
-      calls.add(('deckPanel/ticket', args));
-      return {
-        'ok': true,
-        'value': {
-          'ok': true,
-          'sessionId': 's1',
-          'ticket': {'key': '84', 'title': 'Panel', 'state': 'OPEN', 'body': ''},
-        },
-      };
+    // One Host method carries both reads; the `operation` field selects which
+    // one. It is the Host's own RPC method, not a Gateway endpoint.
+    host.hostMethods[deckPanelReadEndpoint] = (args) {
+      calls.add(('${args['operation']}', args));
+      return args['operation'] == deckTreeOperation
+          ? {'ok': true, 'sessionId': 's1', 'containers': <Object?>[], 'truncated': false}
+          : {
+              'ok': true,
+              'sessionId': 's1',
+              'ticket': {'key': '84', 'title': 'Panel', 'state': 'OPEN', 'body': ''},
+            };
     };
     final client = await connect();
 
     expect(client.supportsDeckPanel, isTrue);
     expect((await client.readDeckTree('s1')).containers, isEmpty);
     expect((await client.readDeckTicket('s1', '84')).title, 'Panel');
-    expect(calls.map((c) => c.$1), ['deckPanel/tree', 'deckPanel/ticket']);
+    expect(calls.map((c) => c.$1), [deckTreeOperation, deckTicketOperation]);
     expect(calls[0].$2, containsPair('sessionId', 's1'));
-    expect(calls.expand((c) => c.$2.keys).toSet(), {'sessionId', 'key'}, reason: 'never a path or a directory');
+    expect(calls[1].$2, containsPair('key', '84'));
+    expect(calls.expand((c) => c.$2.keys).toSet(), {'operation', 'sessionId', 'key'}, reason: 'never a path or a directory');
+    expect(host.rpcMethods, contains(deckPanelReadEndpoint), reason: 'called as a Host method');
+    expect(host.calls.map((c) => c.$1), isNot(contains(deckPanelReadEndpoint)), reason: 'not through the Gateway');
   });
 
   test('a Host that does not announce it has no panel, so the App never asks', () async {
@@ -76,15 +73,21 @@ void main() {
     expect(client.supportsDeckPanel, isFalse);
   });
 
-  test('the allow-list carries the two deck reads and no other deck endpoint', () async {
+  test('the allow-list carries the one deck read method and no other deck endpoint', () async {
     host.handlers['session/list'] = (_) => {
       'ok': true,
       'value': {'items': <Object?>[]},
     };
     final carrier = (await connect()).carrier;
-    expect(carrier.allowsEndpoint(deckTreeEndpoint), isTrue);
-    expect(carrier.allowsEndpoint(deckTicketEndpoint), isTrue);
-    for (final other in ['deckPanel/comment', 'deckPanel/close', 'deckPanel/create', 'deckPanel/update', 'deckPanel']) {
+    expect(carrier.allowsEndpoint(deckPanelReadEndpoint), isTrue);
+    for (final other in [
+      'deck.panel.read.comment',
+      'deck.panel.write',
+      'deckPanel/tree',
+      'deckPanel/ticket',
+      'deckPanel/close',
+      'deck.panel',
+    ]) {
       expect(carrier.allowsEndpoint(other), isFalse, reason: other);
     }
   });

@@ -16,7 +16,9 @@ import 'package:flutter_test/flutter_test.dart';
 class _Carrier extends DshCarrier {
   _Carrier(this.capabilities);
 
-  final Set<String> capabilities;
+  /// Null while the carrier is still handshaking: the App's client exists
+  /// before the Host's answer, so no feature is readable yet.
+  Set<String>? capabilities;
 
   @override
   Set<String>? get peerCapabilities => capabilities;
@@ -39,6 +41,36 @@ class _Carrier extends DshCarrier {
 }
 
 void main() {
+  test('the first arrival at connected shows the panel when it was asked for before the handshake', () async {
+    // The App publishes its client while the carrier is still opening a
+    // session, so the negotiated features are unreadable at that instant and
+    // the panel reads as absent. It must appear when the link reports
+    // connected, without a drop and without restarting the App (#75).
+    final carrier = _Carrier(null);
+    final client = DshClient.withCarrier(carrier);
+    addTearDown(client.close);
+    final statuses = StreamController<HostLinkStatus>();
+    addTearDown(statuses.close);
+    final c = ProviderContainer(
+      overrides: [
+        activeConnectionProvider.overrideWithValue(
+          AsyncData(HostConnection(client: client, label: 'relay', isLocal: false)),
+        ),
+        hostLinkStatusProvider(HostRef.local).overrideWith((ref) => statuses.stream),
+      ],
+    );
+    addTearDown(c.dispose);
+    c.listen(deckPanelReaderProvider, (_, _) {});
+    c.listen(hostLinkStatusProvider(HostRef.local), (_, _) {});
+    expect(c.read(deckPanelReaderProvider), isNull, reason: 'no features are readable yet');
+
+    // The handshake answers, and the link reports what it negotiated.
+    carrier.capabilities = {deckPanelReadFeature};
+    statuses.add(const HostLinkStatus(HostLinkPhase.connected));
+    await pumpEventQueue();
+    expect(c.read(deckPanelReaderProvider), isNotNull);
+  });
+
   test('a reconnect that negotiates again drops the panel when the Host stopped announcing it', () async {
     final capabilities = <String>{deckPanelReadFeature};
     final client = DshClient.withCarrier(_Carrier(capabilities));

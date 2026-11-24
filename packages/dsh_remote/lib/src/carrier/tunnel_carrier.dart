@@ -122,12 +122,21 @@ const Set<String> harnessRemoteAllowlist = {
   'terminal/close',
   'terminal/follow',
   'terminal/retain',
-  // The deck's read-only panel (feature `deck.panel.read.v1`): exactly its two
-  // reads, each scoped by a session id. A Host serves them only while it
-  // announces the feature; the App asks only then (`supportsDeckPanel`).
-  'deckPanel/tree',
-  'deckPanel/ticket',
+  // The deck's read-only panel (feature `deck.panel.read.v1`): one method that
+  // carries exactly its two reads (`operation: 'tree'` / `'ticket'`), each
+  // scoped by a session id. A Host serves it only while it announces the
+  // feature; the App asks only then (`supportsDeckPanel`).
+  'deck.panel.read',
 };
+
+/// Endpoints a Host serves as its own RPC methods rather than as Gateway
+/// calls. `harness.remote.call` resolves Gateway endpoints (the DSH HTTP API
+/// surface, `session/list` and friends); the Host's own methods — the relay's
+/// `apiMethods`, of which the deck read is one — are called by name on the
+/// session's RPC channel, the same way `remote.history.configure` is. Sending
+/// one through the Gateway is refused there as an unknown request shape, which
+/// is what the first real-device run of #75 saw (`INVALID_MESSAGE`).
+const Set<String> hostMethodEndpoints = {'deck.panel.read'};
 
 /// Endpoints whose binary results arrive as a base64 `data` string over the
 /// tunnel (locally they are multipart, which the HTTP carrier rejects).
@@ -462,6 +471,7 @@ class RemoteTunnelCarrier extends DshCarrier implements WorkspaceUploadCarrier {
       );
     }
     final session = await _ensureSession();
+    if (hostMethodEndpoints.contains(endpoint)) return _callHostMethod(session, endpoint, args, timeout);
     final request = <String, Object?>{
       'endpoint': endpoint,
       'payload': {'args': args},
@@ -497,6 +507,26 @@ class RemoteTunnelCarrier extends DshCarrier implements WorkspaceUploadCarrier {
     final result = _parseResult(endpoint, response);
     _tracer?.call(DshTraceEntry('in', 'rpc', {'endpoint': endpoint, 'body': response}));
     return result;
+  }
+
+  /// One of the Host's own RPC methods ([hostMethodEndpoints]): the reply is
+  /// the method's return value itself, not the Gateway's `{ok, value}` wrapper,
+  /// so a refusal and a value must not be re-parsed here.
+  Future<RpcResult> _callHostMethod(
+    RemoteHostSession session,
+    String method,
+    Map<String, Object?> args,
+    Duration? timeout,
+  ) async {
+    _tracer?.call(DshTraceEntry('out', 'rpc', {'method': method, 'args': args}));
+    try {
+      final value = await session.rpc.call(method, args, timeout: timeout ?? callTimeout);
+      _tracer?.call(DshTraceEntry('in', 'rpc', {'method': method, 'body': value}));
+      return RpcOk(value);
+    } on RemoteRpcException catch (error) {
+      _tracer?.call(DshTraceEntry('in', 'rpc', {'method': method, 'error': error.code}));
+      return _foldRpcFailure(method, error);
+    }
   }
 
   /// Host refusals become `{ok: false}`; local deadline/loss become

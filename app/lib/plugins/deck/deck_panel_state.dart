@@ -42,10 +42,15 @@ class ClientDeckPanelReader implements DeckPanelReader {
 final deckPanelReaderProvider = Provider<DeckPanelReader?>((ref) {
   final host = ref.watch(activeHostProvider);
   ref.listen(hostLinkStatusProvider(host), (previous, next) {
-    // `previous.value` is null until the first status arrives; that first
-    // arrival is the connection this build already read, not a reconnect.
+    // Every arrival at connected re-reads the negotiation. The first one counts
+    // too: the App's client exists while the carrier is still handshaking, so a
+    // panel asked for at that moment reads no capabilities and would otherwise
+    // stay absent until the link drops — the app restart that hid this in #84
+    // was the only way to see the panel (found by the real-device run of #75).
+    // `previous.value` is null until the first status arrives, so `!= true`
+    // covers the null case as well.
     final wasConnected = previous?.value?.isConnected;
-    if (wasConnected == false && (next.value?.isConnected ?? false)) ref.invalidateSelf();
+    if (wasConnected != true && (next.value?.isConnected ?? false)) ref.invalidateSelf();
   });
   final client = ref.watch(activeConnectionProvider.select((c) => c.value?.client));
   if (client == null || !client.supportsDeckPanel) return null;

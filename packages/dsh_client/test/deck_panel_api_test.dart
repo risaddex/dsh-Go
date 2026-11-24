@@ -72,6 +72,11 @@ Map<String, Object?> ticketReply({String sessionId = 's1'}) => {
   },
 };
 
+/// Both reads travel on [deckPanelReadEndpoint]; the `operation` in the
+/// arguments is what selects one, so a fake reply is registered per operation.
+const _treeKey = '$deckPanelReadEndpoint $deckTreeOperation';
+const _ticketKey = '$deckPanelReadEndpoint $deckTicketOperation';
+
 void main() {
   late _FakeCarrier carrier;
   late DshClient client;
@@ -97,11 +102,11 @@ void main() {
   group('tree', () {
     test('sends the session id only and reads maps and specs with their tickets', () async {
       connect(capabilities: {deckPanelReadFeature});
-      carrier.replies[deckTreeEndpoint] = treeReply();
+      carrier.replies[_treeKey] = treeReply();
       final tree = await client.readDeckTree('s1');
 
-      expect(carrier.sent.map((c) => c.$1), [deckTreeEndpoint]);
-      expect(carrier.sent.single.$2, {'sessionId': 's1'}, reason: 'the session id and nothing else');
+      expect(carrier.sent.map((c) => c.$1), [deckPanelReadEndpoint]);
+      expect(carrier.sent.single.$2, {'operation': 'tree', 'sessionId': 's1'}, reason: 'the operation and the session id, nothing else');
       expect(tree.containers.map((c) => (c.key, c.kind)), [('70', DeckContainerKind.spec), ('56', DeckContainerKind.map)]);
       final tickets = tree.containers.first.tickets;
       expect(tickets.map((t) => t.isFree), [true, false, false], reason: 'no blockers, an open blocker, unknown blockers');
@@ -111,7 +116,7 @@ void main() {
 
     test('a closed blocker does not hold a ticket back, a blocker with no state does', () async {
       connect(capabilities: {deckPanelReadFeature});
-      carrier.replies[deckTreeEndpoint] = treeReply(
+      carrier.replies[_treeKey] = treeReply(
         containers: [
           {
             'key': '1',
@@ -146,7 +151,7 @@ void main() {
 
     test('carries the truncation signal and the omitted counts', () async {
       connect(capabilities: {deckPanelReadFeature});
-      carrier.replies[deckTreeEndpoint] = treeReply(
+      carrier.replies[_treeKey] = treeReply(
         extra: {'truncated': true, 'omittedContainers': 3, 'omittedTickets': 17},
       );
       final tree = await client.readDeckTree('s1');
@@ -155,7 +160,7 @@ void main() {
 
     test('an empty workspace is an empty tree, not a failure', () async {
       connect(capabilities: {deckPanelReadFeature});
-      carrier.replies[deckTreeEndpoint] = treeReply(containers: <Object?>[]);
+      carrier.replies[_treeKey] = treeReply(containers: <Object?>[]);
       expect((await client.readDeckTree('s1')).containers, isEmpty);
     });
   });
@@ -163,11 +168,11 @@ void main() {
   group('ticket', () {
     test('sends the session id and the key only and reads the seven fields', () async {
       connect(capabilities: {deckPanelReadFeature});
-      carrier.replies[deckTicketEndpoint] = ticketReply();
+      carrier.replies[_ticketKey] = ticketReply();
       final ticket = await client.readDeckTicket('s1', '84');
 
-      expect(carrier.sent.map((c) => c.$1), [deckTicketEndpoint]);
-      expect(carrier.sent.single.$2, {'sessionId': 's1', 'key': '84'}, reason: 'the session id and the key only');
+      expect(carrier.sent.map((c) => c.$1), [deckPanelReadEndpoint]);
+      expect(carrier.sent.single.$2, {'operation': 'ticket', 'sessionId': 's1', 'key': '84'}, reason: 'the operation, the session id and the key only');
       expect((ticket.title, ticket.state, ticket.isClosed), ('Panel', 'OPEN', false));
       expect(ticket.labels.single.name, 'ready-for-agent');
       expect(ticket.body, contains('Build it'));
@@ -181,7 +186,7 @@ void main() {
     setUp(() => connect(capabilities: {deckPanelReadFeature}));
 
     test("the deck's failure kind is the error code, and nothing else leaks", () async {
-      carrier.replies[deckTreeEndpoint] = {
+      carrier.replies[_treeKey] = {
         'ok': false,
         'error': {'kind': 'timeout', 'message': 'The deck read did not finish in time'},
       };
@@ -192,7 +197,7 @@ void main() {
     });
 
     test('a reply for another session is refused', () async {
-      carrier.replies[deckTreeEndpoint] = treeReply(sessionId: 'other');
+      carrier.replies[_treeKey] = treeReply(sessionId: 'other');
       await expectLater(client.readDeckTree('s1'), throwsA(isA<DshProtocolException>()));
     });
 
@@ -210,15 +215,15 @@ void main() {
         {'sessionId': 's1', 'containers': <Object?>[]},
       ];
       for (final reply in bad) {
-        carrier.replies[deckTreeEndpoint] = reply;
+        carrier.replies[_treeKey] = reply;
         await expectLater(client.readDeckTree('s1'), throwsA(isA<DshProtocolException>()), reason: '$reply');
       }
-      carrier.replies[deckTicketEndpoint] = {'ok': true, 'sessionId': 's1', 'ticket': 'x'};
+      carrier.replies[_ticketKey] = {'ok': true, 'sessionId': 's1', 'ticket': 'x'};
       await expectLater(client.readDeckTicket('s1', '84'), throwsA(isA<DshProtocolException>()));
     });
 
     test('an unreadable blocker fails the reply instead of making a blocked ticket look free', () async {
-      carrier.replies[deckTreeEndpoint] = treeReply(
+      carrier.replies[_treeKey] = treeReply(
         containers: [
           {
             'key': '1',
@@ -242,7 +247,7 @@ void main() {
     });
 
     test('a reply over the deck byte bound is refused', () async {
-      carrier.replies[deckTicketEndpoint] = {
+      carrier.replies[_ticketKey] = {
         ...ticketReply(),
         'padding': 'x' * deckReplyMaxBytes,
       };
@@ -281,7 +286,9 @@ class _FakeCarrier extends DshCarrier {
   Future<RpcResult> call(String endpoint, Map<String, Object?> args, {Duration? timeout}) async {
     sent.add((endpoint, args));
     if (fail != null) throw fail!;
-    return RpcOk(replies[endpoint]);
+    final operation = args['operation'];
+    final key = endpoint == deckPanelReadEndpoint && operation is String ? '$endpoint $operation' : endpoint;
+    return RpcOk(replies[key] ?? replies[endpoint]);
   }
 
   @override

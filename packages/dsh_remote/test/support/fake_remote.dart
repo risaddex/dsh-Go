@@ -1320,7 +1320,9 @@ class FakeRemoteHost {
         connection.transfers.remove(params['transferId']);
         respond({'closed': true, 'transferId': params['transferId']});
       default:
-        reject('METHOD_NOT_FOUND', 'Unknown method $method.');
+        final host = hostMethods[method];
+        if (host == null) return reject('METHOD_NOT_FOUND', 'Unknown method $method.');
+        respond(await host(params));
     }
   }
 
@@ -1336,6 +1338,10 @@ class FakeRemoteHost {
     }
     return handler(args);
   }
+
+  /// The Host's own RPC methods (`apiMethods` beyond the Gateway): called by
+  /// name on the session channel, not through `harness.remote.call`.
+  final Map<String, FutureOr<Object?> Function(Map<String, Object?>)> hostMethods = {};
 
   /// Pushes a `$events` item to every connected client.
   void emitHostEvent(Map<String, Object?> value) {
