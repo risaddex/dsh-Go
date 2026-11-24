@@ -7,12 +7,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/l10n.dart';
+import '../../plugins/deck/deck_panel_state.dart' show deckPanelReaderProvider;
 import '../../plugins/native/native_icons.dart';
 import '../../plugins/native/native_model.dart';
 import '../../plugins/native/native_state.dart';
 import '../../plugins/seams/seat_planner.dart';
 import '../plugins/native/chat_plugins_sheet.dart';
 import '../plugins/native/native_panel.dart';
+import '../plugins/seats/seat_links.dart' show deckPanelSeat;
 import '../plugins/seats/session_plugins_tab.dart';
 import '../theme/app_icons.dart';
 import 'conversation_overview.dart';
@@ -72,6 +74,19 @@ class ConversationPane {
     ),
   );
 
+  /// The deck's read-only panel (`deck.panel.read.v1`): its own entry in the side
+  /// panel — the one a left swipe pulls in — exactly while the connected host
+  /// announced the feature. The same announcement decides 对话详情's 插件 tab, so a
+  /// host without it has no entry here either, and no empty pane and no error row.
+  /// Kept out of [pluginsFor]'s tab fallback on purpose: the deck is its own panel,
+  /// not a plugin's web page.
+  static final deckPane = ConversationPane(
+    id: 'deck',
+    icon: AppIcons.plugin,
+    label: () => appL10n.deckPanelTitle,
+    build: (id) => Builder(builder: (context) => deckPanelSeat(context, id)),
+  );
+
   /// The web plugins, all in one: their chat-page parts share one island, and the pages of
   /// any plugin without such parts are a row away.
   static final webPlugins = ConversationPane(
@@ -89,15 +104,24 @@ class ConversationPane {
 
   /// The side panel's 插件, for [sessionId]: every plugin panel, wherever it asked to be,
   /// each its own; then the web plugins.
-  static List<ConversationPane> pluginsFor(WidgetRef ref, String sessionId) {
-    final webParts = !ref.watch(chatWebPluginsProvider(sessionId)).isEmpty;
-    // The page's tab holds native panels too: those are listed on their own here.
-    final pages = ref.watch(sessionPluginPlanProvider(sessionId)).visible.any((item) => item.mode != SeatMode.native);
-    return [
-      // One that asked only for its detail page stays there.
-      for (final panel in ref.watch(nativePanelsProvider))
-        if (panel.placement.any((p) => p != DshGoPanel.pluginPage)) ofNative(panel),
-      if (webParts) webPlugins else if (pages) ofTab(SessionTab.plugins),
-    ];
-  }
+  static List<ConversationPane> pluginsFor(WidgetRef ref, String sessionId) =>
+      ref.watch(conversationPluginPanesProvider(sessionId));
 }
+
+/// The same list as [ConversationPane.pluginsFor], as a provider so a test can read
+/// it without building the panel.
+final conversationPluginPanesProvider = Provider.autoDispose.family<List<ConversationPane>, String>((ref, sessionId) {
+  final webParts = !ref.watch(chatWebPluginsProvider(sessionId)).isEmpty;
+  // The page's tab holds native panels too: those are listed on their own here.
+  final pages = ref.watch(sessionPluginPlanProvider(sessionId)).visible.any((item) => item.mode != SeatMode.native);
+  // The deck answers for itself: the seat plan counts it as a native item, so it
+  // would never reach the web tab, and it must not need a tab row of its own.
+  final deck = ref.watch(deckPanelReaderProvider.select((r) => r != null));
+  return [
+    if (deck) ConversationPane.deckPane,
+    // One that asked only for its detail page stays there.
+    for (final panel in ref.watch(nativePanelsProvider))
+      if (panel.placement.any((p) => p != DshGoPanel.pluginPage)) ConversationPane.ofNative(panel),
+    if (webParts) ConversationPane.webPlugins else if (pages) ConversationPane.ofTab(SessionTab.plugins),
+  ];
+});
