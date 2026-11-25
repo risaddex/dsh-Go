@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../l10n/l10n.dart';
 import '../../../plugins/deck/deck_panel_state.dart';
 import '../../common/app_sheet.dart' show groupTitleStyle;
+import '../../common/label_chip.dart';
 import '../../common/empty_view.dart';
 import '../../common/list_page_row.dart';
 import '../../common/status_chip.dart';
@@ -305,7 +306,9 @@ class _TicketBody extends StatelessWidget {
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: [for (final label in ticket.labels) StatusChip(tone: StatusTone.idle, label: label.name)],
+                children: [
+                  for (final label in ticket.labels) LabelChip(name: label.name, colorHex: label.color),
+                ],
               ),
             ),
           _Section(
