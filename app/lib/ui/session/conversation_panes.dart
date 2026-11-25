@@ -84,7 +84,14 @@ class ConversationPane {
     id: 'deck',
     icon: AppIcons.plugin,
     label: () => appL10n.deckPanelTitle,
-    build: (id) => Builder(builder: (context) => deckPanelSeat(context, id)),
+    // The panel is a plain Column that the host scrolls, as 对话详情's tab does with a ListView:
+    // without one a tree taller than the screen runs past the bottom, over the shortcut row.
+    build: (id) => Builder(
+      builder: (context) => ListView(
+        padding: EdgeInsets.fromLTRB(0, 4, 0, MediaQuery.paddingOf(context).bottom + 24),
+        children: [deckPanelSeat(context, id)],
+      ),
+    ),
   );
 
   /// The web plugins, all in one: their chat-page parts share one island, and the pages of
