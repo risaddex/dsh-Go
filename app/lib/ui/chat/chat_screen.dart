@@ -116,6 +116,7 @@ import 'widgets/permission_pill.dart';
 import 'widgets/plus_panel.dart';
 import 'widgets/quote_chip.dart';
 import 'widgets/read_only_bar.dart';
+import 'widgets/phone_skill_banner.dart';
 import 'widgets/unknown_results_banner.dart';
 
 /// 聊天页:玻璃顶栏 + 消息列表 + 玻璃输入条。
@@ -214,15 +215,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
 
   // Keep this slash draft closed until it leaves slash input or starts again at "/".
   String? _dismissedSlashText;
+  final _slashDraft = ValueNotifier<TextEditingValue?>(null);
   double? _keyboardInset;
   final _composerGroup = Object();
 
-  void _resetSlashDismissal() {
+  void _updateSlashDraft() {
+    final value = _input.value;
+    final text = value.text;
+    final slash = text.trimLeft().startsWith('/');
+    _slashDraft.value = slash ? value : null;
     final dismissed = _dismissedSlashText;
     if (dismissed == null) return;
-    final text = _input.text;
     final newSlash = text.trim() == '/' && dismissed.trim() != '/';
-    _dismissedSlashText = parseSlashInput(text) == null || newSlash ? null : text;
+    _dismissedSlashText = !slash || newSlash ? null : text;
   }
 
   void _dismissSlashPalette() {
@@ -415,8 +420,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     _draftStore = ref.read(draftStoreProvider.notifier);
     // Start reading what earlier sessions still owe before the first send.
     ref.read(owedSetupsProvider.notifier);
+    _input.addListener(_updateSlashDraft);
     _showDraft(ref.read(draftStoreProvider).drafts[_draftKey]);
-    _input.addListener(_resetSlashDismissal);
     _input.addListener(_saveDraft);
     ref.listenManual(currentSessionProvider, (_, next) {
       // Another conversation: nothing of this one is read aloud any more.
@@ -541,7 +546,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     _creating = null;
     _syncWait = null;
     _composerToastWait?.cancel();
-    _input.removeListener(_resetSlashDismissal);
+    _input.removeListener(_updateSlashDraft);
+    _slashDraft.dispose();
     _input.removeListener(_saveDraft);
     _mentions.dispose();
     _voice.removeListener(_reportVoice);
@@ -558,7 +564,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
 
   /// The open session, or a new one (create → select → apply the model picked
   /// on the new-chat screen). Null when it could not be created.
-  Future<String?> _ensureSession({required bool Function() isCurrent}) async {
+  /// [onCreated]: the session this call made, once it is selected, even when its
+  /// picks then fail to apply and null comes back.
+  Future<String?> _ensureSession({required bool Function() isCurrent, void Function(String id)? onCreated}) async {
     if (!isCurrent()) return null;
     final current = ref.read(currentSessionProvider);
     if (current != null) {
@@ -617,6 +625,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       if (!ownsCreation() || _draftKey != sessionId) return null;
       ref.read(currentSessionProvider.notifier).select(sessionId);
       if (!ownsCreation() || _draftKey != sessionId || ref.read(currentSessionProvider) != sessionId) return null;
+      onCreated?.call(sessionId);
       ref.read(composerQuoteProvider.notifier).move('new', sessionId);
       ref.read(generateModeProvider.notifier).move('new', sessionId);
       if (!ownsCreation() || _draftKey != sessionId) return null;
@@ -771,6 +780,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     // A new message: the reply being read aloud is old news.
     ref.read(readAloudProvider.notifier).stop();
     _input.clear();
+    // An already empty field does not notify, and the saved draft still holds the attachments.
+    _saveDraft();
     ref.read(composerQuoteProvider.notifier).clear(sessionId);
 
     // One open question and nothing else waiting: the text is its answer
@@ -1031,6 +1042,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     }
     if (_drafts.isEmpty && prompt.attachments.isNotEmpty) {
       setState(() => _drafts = prompt.attachments);
+      _saveDraft();
       restored = true;
     }
     if (restored) _focus.requestFocus();
@@ -1474,13 +1486,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     showUsageSheet(context, sessionId: sessionId, model: model);
   }
 
+  /// The header's 语音通话 key: a call with the conversation on screen.
+  void _callFromHeader() {
+    HapticFeedback.selectionClick();
+    final scope = _draftScope;
+    unawaited(_startCall(() => mounted && identical(_draftScope, scope)));
+  }
+
   /// 「语音通话」 with this conversation (a new chat gets its conversation
   /// with the first thing said); [ownsDraft]: still the conversation it was asked from.
   Future<void> _startCall(bool Function() ownsDraft) async {
+    final host = ref.read(activeHostProvider);
     // Dictation gives the microphone back first (what it heard so far goes, as on a draft switch).
     await _voice.cancel();
-    if (!mounted || !ownsDraft()) return;
-    final host = ref.read(activeHostProvider);
+    if (!mounted || !ownsDraft() || ref.read(activeHostProvider) != host) return;
     final sessionId = ref.read(currentSessionProvider);
     final listed = sessionId == null ? null : ref.read(chatProvider(sessionId)).title;
     final title = listed != null && listed.trim().isNotEmpty ? chatTitleShown(listed.trim()) : appL10n.commonNewChat;
@@ -1494,7 +1513,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
           // Another host now: its conversation of the same id is not this call's.
           if (!mounted || ref.read(activeHostProvider) != host) return null;
           final id = pinned;
-          if (id == null) return pinned = await _ensureSession(isCurrent: () => mounted);
+          if (id == null) {
+            // Begun on the new-chat screen: another conversation opened since is not this call's.
+            if (ref.read(currentSessionProvider) != null) return null;
+            String? created;
+            final made = await _ensureSession(isCurrent: () => mounted, onCreated: (id) => created = id);
+            // Made but its picks failed to apply: still this call's, the next line retries them.
+            pinned = made ?? created;
+            return made;
+          }
           // Picks it still owes (a failed apply on the new-chat screen) are settled before it is spoken to.
           final owed = ref.read(owedSetupsProvider.notifier).of(host, id);
           if (owed != null && !await _applyOwedSetup(host, id, owed, () => mounted)) return null;
@@ -1950,6 +1977,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                 HapticFeedback.selectionClick();
                                 ref.read(currentSessionProvider.notifier).select(null);
                               },
+                        onCall: isChild ? null : _callFromHeader,
                         // The title pill opens the whole session's details (on a
                         // wide window it folds and unfolds the panel beside us).
                         onTitleTap: sessionId == null
@@ -1976,7 +2004,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: AppSpace.floatingWidth),
                         child: ListenableBuilder(
-                          listenable: Listenable.merge([_input, _mentions]),
+                          listenable: Listenable.merge([_slashDraft, _mentions]),
                           builder: (context, _) {
                             // The `@` word at the caret wins over a "/" line.
                             final live = connected && !readOnly;
@@ -2118,6 +2146,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                       padding: const EdgeInsets.only(bottom: 8),
                                     ),
                                   ),
+                                if (sessionId != null && !readOnly)
+                                  PhoneSkillBanner(sessionId: sessionId, padding: const EdgeInsets.only(bottom: 8)),
                                 SmoothSize(
                                   duration: AppMotion.of(context, AppMotion.standard),
                                   curve: AppMotion.std,
