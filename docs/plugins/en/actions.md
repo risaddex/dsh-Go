@@ -55,7 +55,7 @@ A v1 panel view has four kinds of tappable elements. Each tap is one invoke to t
 - Action ids: `^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$`; `args` ≤ 1 KiB after bindings resolve.
 - The tapped element shows a spinner until the answer; on failure it resets and the app shows the error, never your view.
 - `options` show the `selected` you push: update it in your data after a tap.
-- Tool cards (phase 0) are not tappable: buttons and confirms are hidden, options read-only.
+- Tool cards (phase 0) are not tappable: buttons and confirms are hidden, options read-only. The one exception is `insert` on a `list` row: a tap puts that text in the composer, without sending it and without asking the plugin (see [components](components.md)).
 
 ## The 3-second window
 

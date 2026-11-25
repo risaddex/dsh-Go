@@ -60,7 +60,11 @@ export const confirm = (a, b) => (typeof a === 'string' ? node('confirm', { ...b
 
 // ── added for plugins ─────────────────────────────────────────────────────
 
-/** Rows: `list([{ title, subtitle?, trailing?, icon?, tone?, action? }])`. */
+/**
+ * Rows: `list([{ title, subtitle?, trailing?, icon?, tone?, action?, insert? }])`.
+ * In a tool card, `insert: '<text>'` (1–2000 characters) makes the row tappable: it puts the text in the
+ * composer without sending it. Panels and strips ignore it; they use `action`.
+ */
 export const list = listOr('list', 'items')
 /** Name … value pairs: `keyValue([['名称', '值'], …])` or `keyValue({ items: { 名称: '值' } })`. */
 export const keyValue = listOr('keyValue', 'items')

@@ -500,5 +500,46 @@
     "kind": "note"
    }
   ]
+ },
+ "tool-card-insert-rows": {
+  "fatal": false,
+  "title": null,
+  "issues": [
+   {
+    "path": "view.children[0].items[1].insert",
+    "message": "insert 应该是 1 到 2000 个字符的文字，已忽略",
+    "kind": "note"
+   },
+   {
+    "path": "view.children[0].items[2].insert",
+    "message": "insert 应该是 1 到 2000 个字符的文字，已忽略",
+    "kind": "note"
+   },
+   {
+    "path": "view.children[0].items[3].insert",
+    "message": "insert 应该是 1 到 2000 个字符的文字，已忽略",
+    "kind": "note"
+   },
+   {
+    "path": "view.children[0].items[4].insert",
+    "message": "insert 应该是 1 到 2000 个字符的文字，已忽略",
+    "kind": "note"
+   },
+   {
+    "path": "view.children[0].items[7].insert",
+    "message": "insert 应该是 1 到 2000 个字符的文字，已忽略",
+    "kind": "note"
+   }
+  ]
+ },
+ "panel-insert-ignored": {
+  "fatal": false,
+  "title": null,
+  "issues": []
+ },
+ "strip-insert-ignored": {
+  "fatal": false,
+  "title": null,
+  "issues": []
  }
 }

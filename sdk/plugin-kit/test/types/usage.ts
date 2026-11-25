@@ -6,6 +6,7 @@ const view: View = stack([
   row([metric({ label: '本对话', value: bind('data.session'), tone: 'good' }), metric({ label: '今日', value: 12 })]),
   chart({ kind: 'bar', categories: ['a', 'b'], series: [{ name: 'x', values: [1, null] }], unit: '元' }),
   list([{ title: 'deepseek-chat', trailing: '12k', icon: 'robot', action: action('open', { row: 1 }) }]),
+  list([{ title: 'Draft the notes', subtitle: 'tool card only', insert: 'Draft the release notes' }]),
   keyValue([['输入', '1.2k'], ['输出', bind('data.out')]]),
   progress(42, { label: '额度' }),
   table({ columns: ['名称', { label: '金额', align: 'end' }], rows: [['a', 1], ['b', null]] }),

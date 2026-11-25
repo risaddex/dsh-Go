@@ -9927,6 +9927,14 @@
       }
     }
   },
+  "plugViewBadInsert": "insert 应该是 1 到 {limit} 个字符的文字，已忽略",
+  "@plugViewBadInsert": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
   "plugViewUnknownIcon": "未知图标 {value}，画默认图标",
   "@plugViewUnknownIcon": {
     "placeholders": {

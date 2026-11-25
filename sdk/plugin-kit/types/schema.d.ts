@@ -306,6 +306,8 @@ export interface ViewListNode {
     icon?: ViewIcon
     tone?: ViewTone
     action?: ViewAction
+    /** Tool cards only: tapping the row puts this text in the composer, never sending it. Panels and strips ignore it (use action). */
+    insert?: string
   } | ViewBinding> | ViewBinding
 }
 

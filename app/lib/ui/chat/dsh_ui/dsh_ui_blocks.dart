@@ -11,6 +11,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../../../l10n/l10n.dart';
+import '../../../plugins/native/native_effects.dart' show InsertEffect;
 import '../../../plugins/native/native_icons.dart' show nativeIcon;
 import '../../common/pressable.dart';
 import '../../theme/app_icons.dart';
@@ -26,9 +27,20 @@ import 'dsh_ui_widgets.dart';
 /// 有它就按插件视图画（options / confirm 走 invoke）；[onAction] 为 null 时
 /// 只读：`actions`、`confirm` 不显示，`options` 只读，`list` 行不可点。
 class DshUiPluginScope extends InheritedWidget {
-  const DshUiPluginScope({super.key, this.onAction, this.imageResolver, this.animate = false, required super.child});
+  const DshUiPluginScope({
+    super.key,
+    this.onAction,
+    this.onInsert,
+    this.imageResolver,
+    this.animate = false,
+    required super.child,
+  });
 
   final PluginActionHandler? onAction;
+
+  /// 工具卡：点带 `insert` 的 `list` 行，交出一个 [InsertEffect]（放进输入框，不发送、不问插件）。
+  /// null 时这样的行只读。
+  final ValueChanged<InsertEffect>? onInsert;
   final PluginImageResolver? imageResolver;
   final bool animate;
 
@@ -55,7 +67,10 @@ class DshUiPluginScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(DshUiPluginScope old) =>
-      old.onAction != onAction || old.imageResolver != imageResolver || old.animate != animate;
+      old.onAction != onAction ||
+      old.onInsert != onInsert ||
+      old.imageResolver != imageResolver ||
+      old.animate != animate;
 }
 
 /// 发一次 invoke，并记住哪些元素在等结果（小环、防重复点）。
@@ -221,7 +236,9 @@ class _DshUiListBlockState extends State<DshUiListBlock> with _Invoking {
   @override
   Widget build(BuildContext context) {
     final node = widget.node;
-    final interactive = DshUiPluginScope.maybeOf(context)?.interactive ?? false;
+    final scope = DshUiPluginScope.maybeOf(context);
+    final interactive = scope?.interactive ?? false;
+    final onInsert = scope?.onInsert;
     final withIcons = node.items.any((i) => i.icon != null);
     return DecoratedBox(
       decoration: ShapeDecoration(color: context.dshUiWell, shape: Squircle.border(DshUiMetrics.wellRadius)),
@@ -232,7 +249,8 @@ class _DshUiListBlockState extends State<DshUiListBlock> with _Invoking {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (var i = 0; i < node.items.length; i++) _row(context, i, node.items[i], withIcons, interactive),
+              for (var i = 0; i < node.items.length; i++)
+                _row(context, i, node.items[i], withIcons, interactive, onInsert),
             ],
           ),
         ),
@@ -240,12 +258,20 @@ class _DshUiListBlockState extends State<DshUiListBlock> with _Invoking {
     );
   }
 
-  Widget _row(BuildContext context, int index, DshUiListItem item, bool withIcons, bool interactive) {
+  Widget _row(
+    BuildContext context,
+    int index,
+    DshUiListItem item,
+    bool withIcons,
+    bool interactive,
+    ValueChanged<InsertEffect>? onInsert,
+  ) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final dsh = DshColors.of(context);
     final tone = dshUiToneColor(context, item.tone);
     final action = interactive ? item.action : null;
+    final insert = action == null && onInsert != null ? item.insert : null;
     final waiting = busy(index);
     final subtitle = item.subtitle;
     final twoLines = subtitle != null && subtitle.isNotEmpty;
@@ -308,7 +334,7 @@ class _DshUiListBlockState extends State<DshUiListBlock> with _Invoking {
                 ),
               ),
             ],
-            if (action != null) ...[
+            if (action != null || insert != null) ...[
               const SizedBox(width: 8),
               SizedBox.square(
                 dimension: 16,
@@ -321,6 +347,12 @@ class _DshUiListBlockState extends State<DshUiListBlock> with _Invoking {
         ),
       ),
     );
+    if (insert != null) {
+      return Semantics(
+        button: true,
+        child: dshUiPluginInkWell(context, onTap: () => onInsert!(InsertEffect(insert)), child: row),
+      );
+    }
     if (action == null) {
       return MergeSemantics(child: row);
     }

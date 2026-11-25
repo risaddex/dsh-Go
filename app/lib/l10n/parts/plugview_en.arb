@@ -47,6 +47,14 @@
       }
     }
   },
+  "plugViewBadInsert": "insert must be text of 1 to {limit} characters; ignored",
+  "@plugViewBadInsert": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
   "plugViewUnknownIcon": "Unknown icon {value}; drawn with the default icon",
   "@plugViewUnknownIcon": {
     "placeholders": {

@@ -101,7 +101,15 @@ final class DshUiAction {
 }
 
 final class DshUiListItem {
-  const DshUiListItem({required this.title, this.subtitle, this.trailing, this.icon, this.tone, this.action});
+  const DshUiListItem({
+    required this.title,
+    this.subtitle,
+    this.trailing,
+    this.icon,
+    this.tone,
+    this.action,
+    this.insert,
+  });
 
   final String title;
   final String? subtitle;
@@ -113,6 +121,9 @@ final class DshUiListItem {
   final String? icon;
   final DshUiTone? tone;
   final DshUiAction? action;
+
+  /// 点这一行要放进输入框的文字（不发送）。只有工具卡接它；面板的行用 [action]。
+  final String? insert;
 }
 
 /// `list`：一组行。
@@ -321,6 +332,17 @@ DshUiAction? _pluginAction(Object? raw, String path, _Ctx ctx) {
   return DshUiAction(id, Map.unmodifiable(_plainJson(args) as Map));
 }
 
+/// `"insert": "<text>"`：1 到 [UiSchema.sendTextMax] 个字符，原样保留（不裁剪，
+/// 截断的提示词比没有更糟）；没写为 null（不记问题），写坏或过长记一条并当没写。
+/// 只有工具卡认：面板和状态条里这个字段和别的未知字段一样被忽略。
+String? _pluginInsert(Object? raw, String path, _Ctx ctx) {
+  if (!identical(ctx.p, DshUiProfile.toolCard)) return null;
+  if (raw == null || raw is DshUiMissing) return null;
+  if (raw is String && raw.trim().isNotEmpty && raw.length <= UiSchema.sendTextMax) return raw;
+  ctx.note(path, appL10n.plugViewBadInsert(UiSchema.sendTextMax));
+  return null;
+}
+
 /// 求值后的 JSON 里把「取不到」换成 null（发给插件的参数是纯 JSON）。
 Object? _plainJson(Object? value) => switch (value) {
   DshUiMissing() => null,
@@ -382,6 +404,7 @@ DshUiNode _list(Map<String, Object?> raw, String path, _Ctx ctx) {
         icon: _icon(item['icon'], '$at.icon', ctx),
         tone: _pluginTone(item['tone'], '$at.tone', ctx),
         action: _pluginAction(item['action'], '$at.action', ctx),
+        insert: _pluginInsert(item['insert'], '$at.insert', ctx),
       ),
     );
   }

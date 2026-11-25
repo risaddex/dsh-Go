@@ -16941,6 +16941,11 @@ class L10nZh extends L10n {
   }
 
   @override
+  String plugViewBadInsert(int limit) {
+    return 'insert 应该是 1 到 $limit 个字符的文字，已忽略';
+  }
+
+  @override
   String plugViewUnknownIcon(String value) {
     return '未知图标 $value，画默认图标';
   }

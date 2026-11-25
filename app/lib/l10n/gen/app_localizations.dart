@@ -31224,6 +31224,12 @@ abstract class L10n {
   /// **'动作参数超过 {limit} 字节，已忽略'**
   String plugViewArgsLimit(int limit);
 
+  /// No description provided for @plugViewBadInsert.
+  ///
+  /// In zh, this message translates to:
+  /// **'insert 应该是 1 到 {limit} 个字符的文字，已忽略'**
+  String plugViewBadInsert(int limit);
+
   /// No description provided for @plugViewUnknownIcon.
   ///
   /// In zh, this message translates to:

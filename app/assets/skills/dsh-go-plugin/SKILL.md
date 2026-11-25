@@ -193,7 +193,7 @@ ctx.dshGo.on('translate', (scope) => ({
 | `compare` | `items: [{ title, badge?, rows: [[名称, 值]] }]`（2–4 项） |
 | `steps` | `items: [{ label, status: done\|current\|todo\|failed, detail? }]` |
 | `callout` | `text` `tone?: info\|good\|warn\|bad` |
-| `list` | `items: [{ title, subtitle?, trailing?, icon?, tone?, action? }]`（≤ 50） |
+| `list` | `items: [{ title, subtitle?, trailing?, icon?, tone?, action?, insert? }]`（≤ 50；`insert` 只在工具卡认，1–2000 字符，点一下放进输入框、不发送） |
 | `keyValue` | `items: [[名称, 值], …]` 或 `[{ label, value, tone? }]` 或 `{ 名称: 值 }`（≤ 24） |
 | `progress` | `value` `max?`（缺省 100）`label?` `caption?` `tone?` |
 | `table` | `columns: [文字 \| { label, align? }]`（≤ 8）`rows: [[…]]`（≤ 50） |
@@ -202,7 +202,7 @@ ctx.dshGo.on('translate', (scope) => ({
 | `confirm` | `id` `confirmLabel?` `cancelLabel?` |
 | `image` | `src`：`/dsh-go/v1/…` 同源路径或 ≤ 64 KiB 的 `data:image/…`；`alt?` `aspect?` |
 
-`action` 写动作 id 字符串，或 `{ "id": "open", "args": { … } }`（args ≤ 1 KiB）。上限：面板 32 KiB / 120 个组件 / 8 层；工具卡 8 KiB / 40 个 / 6 层，第 0 期不能点。
+`action` 写动作 id 字符串，或 `{ "id": "open", "args": { … } }`（args ≤ 1 KiB）。上限：面板 32 KiB / 120 个组件 / 8 层；工具卡 8 KiB / 40 个 / 6 层，第 0 期只有带 `insert` 的 `list` 行能点。
 
 工具卡：
 

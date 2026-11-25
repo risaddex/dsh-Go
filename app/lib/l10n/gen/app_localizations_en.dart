@@ -17844,6 +17844,11 @@ class L10nEn extends L10n {
   }
 
   @override
+  String plugViewBadInsert(int limit) {
+    return 'insert must be text of 1 to $limit characters; ignored';
+  }
+
+  @override
   String plugViewUnknownIcon(String value) {
     return 'Unknown icon $value; drawn with the default icon';
   }

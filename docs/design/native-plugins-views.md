@@ -63,7 +63,7 @@
 
 | 组件 | 属性 | 说明 |
 |---|---|---|
-| `list` | `items: [{title, subtitle?, trailing?, icon?, tone?, action?}]` | 一组行，装在一个浅底井里，行间不画线。单行 52、两行 64。`trailing` 是行尾的值或状态（数字等宽）；`tone` 给行尾文字和图标上色；有 `action` 的行可点，行尾带箭头 |
+| `list` | `items: [{title, subtitle?, trailing?, icon?, tone?, action?, insert?}]` | 一组行，装在一个浅底井里，行间不画线。单行 52、两行 64。`trailing` 是行尾的值或状态（数字等宽）；`tone` 给行尾文字和图标上色；有 `action` 的行可点，行尾带箭头。`insert`：1–2000 字符的文字，只有工具卡认——点这一行就执行既有的 `insert` 效果（放进输入框，不发送），不走 invoke、不问插件；面板、状态条忽略。写坏、空白或超长的当没写并记一条问题，不截断 |
 | `keyValue` | `items`：`[[名称, 值], …]`、`[{label, value, tone?}, …]` 或 `{名称: 值}` | 「名称 …… 值」两列，值右对齐、数字等宽 |
 | `progress` | `value`；`max?`（缺省 100）；`label?`；`caption?`；`tone?`：good · warn · bad · info | 一条进度。`caption` 缺省显示百分比；超出 0–`max` 的值按边界画 |
 | `table` | `columns: [文字 \| {label, align?: start \| end}]`；`rows: [[单元格, …], …]` | 表格。整列都是数字时自动右对齐；放不下时横向滑动。单元格收文字或数字 |
@@ -131,7 +131,7 @@ App 附上插件包名和作用域后发出，对应 NA 协议 §4.4：`surface:
 | 反馈 | 点下后这个元素显示小环，直到 invoke 返回。等结果时同一个元素不重复触发（`options`、`confirm` 整组一起等）；视图里的其他元素照常可点 |
 | 选中态 | `options` 点下先按选中画；invoke 失败就退回。之后以插件推来的 `selected` 为准 |
 | 失败 | 元素恢复可点；错误提示由 App 统一给，插件视图里不出现报错文字 |
-| 不能点的地方 | 第 0 期的工具卡没有 invoke 通道：`actions`、`confirm` 不显示；`options` 显示成只读清单（`selected` 打勾）；`list` 行不带箭头 |
+| 不能点的地方 | 第 0 期的工具卡没有 invoke 通道：`actions`、`confirm` 不显示；`options` 显示成只读清单（`selected` 打勾）；`list` 行不带箭头。唯一例外是带 `insert` 的 `list` 行：它不走 invoke，点一下在本机把文字放进聊天页输入框（没有输入框可借的地方仍只读）；同一行也有 `action` 时，工具卡里 `action` 不生效，按 `insert` 处理 |
 | 不发消息 | 插件视图里的 `options` / `confirm` 永远不会像模型卡那样发出 `[dsh-ui reply]` 消息 |
 
 ## 5. 上限
@@ -274,7 +274,7 @@ defineTool({
 - `presentationMeta` 的返回值是一个对象，dsh-go 只读其中的 `"dsh-go/view"` 键；同一个对象里放别的键（官方网页版的元数据）互不影响。
 - 必须是纯函数、不抛错：DSH 在工具成功后调用它，**抛错会让这次工具调用失败**。
 - 只在工具成功时才有；失败的调用照常显示错误。
-- 视图 ≤ 8 KiB（它会写进对话记录）。工具卡没有数据模型，直接写值；第 0 期不能点。
+- 视图 ≤ 8 KiB（它会写进对话记录）。工具卡没有数据模型，直接写值；第 0 期不能点，只有带 `insert` 的 `list` 行例外（见 §4）。
 - 图片只能用 `data:`：对话记录里只有工具名，App 不知道它属于哪个插件包，`asset:` 取不到。
 
 ### 8.2 链路（已查源码，DSH 0.2.1-rc.2）

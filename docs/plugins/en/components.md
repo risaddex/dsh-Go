@@ -39,7 +39,7 @@ Set `v: 2` at the root for semantic font sizes, weights, rich spans and readable
 
 | Component | Properties | Limit | Notes |
 |---|---|---|---|
-| `list` | `items: [{ title, subtitle?, trailing?, icon?, tone?, action? }]` | 50 rows | Rows; `trailing` is the value at the end; rows with `action` are tappable and get a chevron |
+| `list` | `items: [{ title, subtitle?, trailing?, icon?, tone?, action?, insert? }]` | 50 rows | Rows; `trailing` is the value at the end; rows with `action` are tappable and get a chevron. `insert` (1–2000 characters) is read in tool cards only: a tap puts that text in the composer as written, without sending it or asking the plugin, and the row gets a chevron; panels and strips ignore it. A bad or too-long `insert` is reported and treated as absent; on an app that is too old, or where the card is drawn without a composer, the row stays read-only |
 | `keyValue` | `items: [[name, value]]`, `[{ label, value, tone? }]` or `{ name: value }` | 24 | "name …… value", values right-aligned, tabular digits |
 | `progress` | see above | — | — |
 | `table` | `columns: [text \| { label, align?: start\|end }]`; `rows: [[cell]]` | 8 columns, 50 rows | All-number columns right-align; scrolls sideways when wide |
@@ -94,7 +94,7 @@ A plugin panel (metrics, progress, list, buttons, options, text, notice):
 
 ## Tool cards
 
-The card in a tool row; collapsed, the row shows the view's `title`. Not tappable in phase 0: buttons and confirms are hidden, options are read-only.
+The card in a tool row; collapsed, the row shows the view's `title`. Not tappable in phase 0: buttons and confirms are hidden, options are read-only; only a `list` row with `insert` is tappable (it puts text in the composer, never sends it). The whole card still has to fit 8 KiB, `insert` text included.
 
 | Light | Dark |
 |---|---|

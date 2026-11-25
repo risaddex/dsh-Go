@@ -3,9 +3,12 @@
 // this file is what the slots (tool cards, panels, the composer strip) use.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../../l10n/l10n.dart';
+import '../../../plugins/native/native_effects.dart' show InsertEffect;
 import '../../../plugins/native/native_icons.dart' show nativeIcon;
+import '../native/native_taps.dart' show NativeComposerScope, insertIntoComposer;
 import '../../chat/dsh_ui/dsh_ui_blocks.dart';
 import '../../chat/dsh_ui/dsh_ui_model.dart';
 import '../../chat/dsh_ui/dsh_ui_plugin.dart';
@@ -121,6 +124,7 @@ class PluginViewBody extends StatelessWidget {
     required this.view,
     this.budget = PluginViewBudget.panel,
     this.onAction,
+    this.onInsert,
     this.imageResolver,
     this.showTitle = true,
     this.animate = false,
@@ -129,6 +133,9 @@ class PluginViewBody extends StatelessWidget {
   final DshUiView view;
   final PluginViewBudget budget;
   final PluginActionHandler? onAction;
+
+  /// 工具卡的 `insert` 行怎么处理；null = 只读。
+  final ValueChanged<InsertEffect>? onInsert;
   final PluginImageResolver? imageResolver;
   final bool showTitle;
   final bool animate;
@@ -160,6 +167,7 @@ class PluginViewBody extends StatelessWidget {
     }
     return DshUiPluginScope(
       onAction: onAction,
+      onInsert: onInsert,
       imageResolver: imageResolver ?? PluginImages.maybeOf(context)?.resolver,
       animate: animate,
       child: DshUiPictureViewer(
@@ -354,12 +362,31 @@ class _ToolCardSurface extends StatelessWidget {
   final DshUiView view;
 
   @override
-  Widget build(BuildContext context) => GlassSurface(
-    tier: GlassTier.card,
-    borderRadius: AppShape.radiusLg,
-    padding: const EdgeInsets.all(DshUiMetrics.cardPadding),
-    child: PluginViewBody(view: view, budget: PluginViewBudget.toolCard),
-  );
+  Widget build(BuildContext context) {
+    // 带 `insert` 的行借聊天页的输入框；没有输入框可借（别处画的卡）就只读。
+    final composer = NativeComposerScope.of(context);
+    return GlassSurface(
+      tier: GlassTier.card,
+      borderRadius: AppShape.radiusLg,
+      padding: const EdgeInsets.all(DshUiMetrics.cardPadding),
+      child: PluginViewBody(
+        view: view,
+        budget: PluginViewBudget.toolCard,
+        onInsert: composer == null
+            ? null
+            : (effect) {
+                HapticFeedback.selectionClick();
+                insertIntoComposer(
+                  context,
+                  composer.ref,
+                  effect.text,
+                  sessionId: composer.host.sessionId,
+                  composer: composer.host,
+                );
+              },
+      ),
+    );
+  }
 }
 
 /// 卡片下的「详情」：一行，点开是参数和结果。

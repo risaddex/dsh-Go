@@ -19,7 +19,7 @@ Commands, skills, Config schemas and `dsh-ui` cards already show natively. See [
 
 Your tool returns a view and the app draws it as a card. It takes about 5 minutes and travels with the transcript, so relay hosts show it too. See the [quickstart](quickstart.md).
 
-Tool cards are read-only for now: buttons in them don't act.
+Tool cards are read-only for now: buttons in them don't act. The one tappable thing is `insert` on a `list` row, which puts text in the composer (never sends it).
 
 ## 3. Native plugin
 

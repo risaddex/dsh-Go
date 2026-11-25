@@ -24,6 +24,8 @@ const L = {
 const P = {
   listItems: 50, tableRows: 50, tableColumns: 8, keyValues: 24, actions: 4, jsonNesting: 64,
   actionArgsBytes: 1024, imageDataBytes: 65536, imageSide: 4096, imagePixels: 4000000,
+  /** UiSchema.sendTextMax: the longest text an `insert` row puts in the composer. */
+  insertText: 2000,
 }
 
 /** The three plugin budgets (docs/design/native-plugins-views.md §5). */
@@ -733,6 +735,17 @@ function pluginAction(raw, path, ctx) {
   return id
 }
 
+/**
+ * `insert: "<text>"` on a list row (dsh_ui_plugin_model.dart `_pluginInsert`): 1 to P.insertText
+ * characters, kept as written. Only a tool card reads it; other budgets ignore the field.
+ */
+function pluginInsert(raw, path, ctx) {
+  if (ctx.p.name !== 'toolCard') return
+  if (raw === null || raw === undefined || isMissing(raw)) return
+  if (typeof raw === 'string' && raw.trim() !== '' && raw.length <= P.insertText) return
+  ctx.note(path, ctx.m('plugViewBadInsert', P.insertText))
+}
+
 function icon(raw, path, ctx) {
   if (raw === null || raw === undefined || isMissing(raw)) return null
   if (typeof raw === 'string' && ICONS.has(raw)) return raw
@@ -767,6 +780,7 @@ function parseList(raw, path, ctx) {
     icon(item.icon, `${at}.icon`, ctx)
     pluginTone(item.tone, `${at}.tone`, ctx)
     pluginAction(item.action, `${at}.action`, ctx)
+    pluginInsert(item.insert, `${at}.insert`, ctx)
     items++
   }
   if (items === 0) return ctx.broken(`${path}.items`, m('viewUiNoItems'), 'list')

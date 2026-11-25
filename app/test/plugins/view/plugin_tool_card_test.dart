@@ -5,6 +5,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dsh_app/ui/chat/dsh_ui/dsh_ui_model.dart' show DshUiList, DshUiListItem;
 import 'package:dsh_app/ui/chat/tool_view.dart';
 import 'package:dsh_app/ui/chat/widgets/stream_row.dart';
 import 'package:dsh_app/ui/chat/widgets/tool_row.dart';
@@ -14,6 +15,7 @@ import 'package:dsh_client/dsh_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../native/support.dart' show FakeComposer, withComposer;
 import 'fixtures.dart';
 import 'support.dart';
 
@@ -309,6 +311,111 @@ void main() {
         matching: find.byType(InkWell),
       );
       expect(card.evaluate().where((e) => (e.widget as InkWell).onTap != null), isEmpty);
+    });
+
+    group('insert rows', () {
+      final suggestions = {
+        'type': 'stack',
+        'title': '下一步',
+        'children': [
+          {
+            'type': 'list',
+            'items': [
+              {'title': '写发布说明', 'subtitle': '草稿', 'insert': '请起草 v1.2 的发布说明'},
+              {'title': '只看看', 'subtitle': '没有 insert'},
+            ],
+          },
+        ],
+      };
+
+      Future<FakeComposer> pumpWithComposer(WidgetTester tester, Object view) async {
+        final composer = FakeComposer();
+        usePhoneView(tester);
+        await tester.pumpWidget(
+          testApp(
+            withComposer(
+              composer,
+              Scaffold(
+                body: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: ToolRow(
+                    key: const ValueKey('ins'),
+                    item: weather('ins', meta: {'dsh-go/view': view}),
+                    card: ToolCardPlacement.inline,
+                    onRespond: _noRespond,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await pumpFrames(tester);
+        return composer;
+      }
+
+      testWidgets('a tap puts the row text in the composer, once, without sending', (tester) async {
+        final composer = await pumpWithComposer(tester, suggestions);
+        await tester.tap(inRow('ins', find.text('写发布说明')));
+        await pumpFrames(tester);
+        expect(composer.inserted, ['请起草 v1.2 的发布说明']);
+        // A row without the field stays read-only.
+        await tester.tap(inRow('ins', find.text('只看看')));
+        await pumpFrames(tester);
+        expect(composer.inserted, hasLength(1));
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('without a composer to lend, the row is read-only', (tester) async {
+        await pumpRows(tester, [
+          weather('ro', meta: {'dsh-go/view': suggestions}),
+        ]);
+        expect(inRow('ro', find.text('写发布说明')), findsOneWidget);
+        final taps = find.descendant(
+          of: find.descendant(of: find.byType(PluginToolCard), matching: find.byType(GlassSurface)),
+          matching: find.byType(InkWell),
+        );
+        expect(taps.evaluate().where((e) => (e.widget as InkWell).onTap != null), isEmpty);
+      });
+
+      testWidgets('a bad insert is dropped and the row is read-only', (tester) async {
+        final composer = await pumpWithComposer(tester, {
+          'type': 'list',
+          'items': [
+            {'title': '空白', 'insert': '  '},
+            {'title': '太长', 'insert': 'x' * 2001},
+            {'title': '数字', 'insert': 5},
+          ],
+        });
+        for (final title in ['空白', '太长', '数字']) {
+          await tester.tap(inRow('ins', find.text(title)));
+          await pumpFrames(tester);
+        }
+        expect(composer.inserted, isEmpty);
+      });
+
+      test('only the tool card profile reads the field', () {
+        final view = {
+          'type': 'list',
+          'items': [
+            {'title': 'a', 'insert': 'hello'},
+          ],
+        };
+        DshUiListItem first(DshUiParse parse) {
+          final root = (parse as DshUiParsed).view.root as DshUiList;
+          return root.items.single;
+        }
+
+        expect(first(parsePluginView(view, budget: PluginViewBudget.toolCard)).insert, 'hello');
+        expect(first(parsePluginView(view, budget: PluginViewBudget.panel)).insert, isNull);
+        final bad = parsePluginView({
+          'type': 'list',
+          'items': [
+            {'title': 'a', 'insert': 7},
+          ],
+        }, budget: PluginViewBudget.toolCard);
+        expect(first(bad).insert, isNull);
+        expect((bad as DshUiParsed).view.issues.single.path, 'view.items[0].insert');
+      });
     });
 
     testWidgets('a session log written by DSH 0.2.1-rc.2', (tester) async {

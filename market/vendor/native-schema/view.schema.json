@@ -389,7 +389,13 @@
                       "trailing": { "$ref": "#/$defs/label" },
                       "icon": { "$ref": "#/$defs/icon" },
                       "tone": { "$ref": "#/$defs/tone" },
-                      "action": { "$ref": "#/$defs/action" }
+                      "action": { "$ref": "#/$defs/action" },
+                      "insert": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000,
+                        "description": "Tool cards only: tapping the row puts this text in the composer, never sending it. Panels and strips ignore it (use action)."
+                      }
                     },
                     "additionalProperties": false
                   },

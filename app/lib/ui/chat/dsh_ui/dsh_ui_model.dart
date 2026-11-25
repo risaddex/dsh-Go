@@ -12,6 +12,7 @@ import 'dart:typed_data';
 
 import '../../../l10n/l10n.dart';
 import '../../../plugins/native/native_icons.dart' show nativeIcon;
+import '../../../ui_config/ui_config_schema.dart' show UiSchema;
 import 'dsh_ui_bind.dart';
 import 'dsh_ui_dialect_genui.dart';
 import 'dsh_ui_plugin_formula.dart';
