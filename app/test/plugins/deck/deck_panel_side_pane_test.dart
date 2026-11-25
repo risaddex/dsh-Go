@@ -23,8 +23,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../chat/support/harness.dart';
 
-/// A tree reply the client accepts, so the panel has something to draw.
-Map<String, Object?> _treeReply() => {
+/// A tree reply the client accepts, so the panel has something to draw. [tickets] children
+/// under the one spec: enough of them make the panel taller than the screen.
+Map<String, Object?> _treeReply({int tickets = 1}) => {
   'ok': true,
   'sessionId': 's1',
   'containers': [
@@ -34,7 +35,13 @@ Map<String, Object?> _treeReply() => {
       'title': 'Spec over the side panel',
       'state': 'OPEN',
       'tickets': [
-        {'key': '93', 'title': 'Side panel entry', 'state': 'OPEN', 'url': ''},
+        for (var i = 0; i < tickets; i++)
+          {
+            'key': '${93 + i}',
+            'title': tickets == 1 ? 'Side panel entry' : 'Ticket ${93 + i}',
+            'state': 'OPEN',
+            'url': '',
+          },
       ],
     },
   ],
@@ -46,9 +53,10 @@ Map<String, Object?> _treeReply() => {
 /// A carrier that only reports the features its Host announces, and answers
 /// the deck read with one container.
 class _Carrier extends DshCarrier {
-  _Carrier(this.capabilities);
+  _Carrier(this.capabilities, {this.tickets = 1});
 
   final Set<String> capabilities;
+  final int tickets;
 
   @override
   Set<String>? get peerCapabilities => capabilities;
@@ -61,7 +69,7 @@ class _Carrier extends DshCarrier {
 
   @override
   Future<RpcResult> call(String endpoint, Map<String, Object?> args, {Duration? timeout}) async =>
-      endpoint == 'deck.panel.read' ? RpcOk(_treeReply()) : throw const DshTransportException('not used');
+      endpoint == 'deck.panel.read' ? RpcOk(_treeReply(tickets: tickets)) : throw const DshTransportException('not used');
 
   @override
   Future<DshMuxLink> openLink(MuxOptions options) => throw const DshTransportException('not used');
@@ -73,8 +81,8 @@ class _Carrier extends DshCarrier {
 const _seat = SeatContext(host: HostRef.local, sessionId: 's1', placement: SeatPlacement.panel);
 
 /// Everything the side panel reads, except the deck, stubbed empty.
-List<Override> _overrides({required Set<String> announced}) {
-  final client = DshClient.withCarrier(_Carrier(announced));
+List<Override> _overrides({required Set<String> announced, int tickets = 1}) {
+  final client = DshClient.withCarrier(_Carrier(announced, tickets: tickets));
   addTearDown(client.close);
   return [
     activeConnectionProvider.overrideWithValue(
@@ -118,6 +126,34 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(DeckPanelView), findsOneWidget);
     expect(find.textContaining('Spec over the side panel'), findsOneWidget);
+  });
+
+  // #98: a tree taller than the screen must scroll inside the side panel. The panel's
+  // body used to be a plain Column in a bounded box, so the rows ran past the bottom of
+  // the screen over the shortcut row, with nothing to scroll.
+  testWidgets('a tree taller than the screen scrolls inside the side panel', (tester) async {
+    await loadTestFonts();
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      testApp(
+        Scaffold(body: ConversationPanel(sessionId: 's1', onOpen: _ignore)),
+        overrides: _overrides(announced: {deckPanelReadFeature}, tickets: 40),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('插件').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(tester.takeException(), isNull, reason: 'the rows must not overflow the panel');
+    final last = find.textContaining('Ticket 132');
+    await tester.scrollUntilVisible(
+      last,
+      300,
+      scrollable: find.ancestor(of: find.byType(DeckPanelView), matching: find.byType(Scrollable)).first,
+    );
+    expect(last, findsOneWidget);
   });
 }
 
