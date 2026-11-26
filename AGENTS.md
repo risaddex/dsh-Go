@@ -125,6 +125,12 @@ CI（`.github/workflows/ci.yml`）在 PR 上跑通用检查和改动涉及的部
 - 内部 PR：走 `.agents/skills/pr`（流程、模板、验证记录）。
 - 代码审查：走 `.agents/skills/review`（证据优先，只报本次改动引入的实质问题）。
 - 缺陷报告：`.agents/skills/bug`；安全审计：`.agents/skills/vuln-check`；大范围审计：`.agents/skills/audit`。
+- **构建基线是 fork，不是上游。** 所有构建（Android APK、iOS TestFlight）都从 `risaddex/dsh-Go` 的
+  `main` 出；上游 `ccch1mneyyy/dsh-go` 只做 cherry-pick，按上游版本节奏挑需要的提交。上游没有 deck 面板
+  （`app/lib/ui/plugins/deck/`、宿主的 `deck.panel.read.v1`），从上游构建出来的包会缺这个功能 —— 只有
+  fork 的构建才带它。
+- **iOS → TestFlight**：走 `.agents/skills/ios-testflight`（包名替换、签名团队、90035 脚本规则、上传与
+  导出合规）。装机直连用 `flutter run --release -d <udid>`，它签的是 development，和 IPA 不是一回事。
 
 ## 编辑本文件
 
