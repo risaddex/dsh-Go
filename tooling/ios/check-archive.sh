@@ -109,6 +109,14 @@ for framework in "$frameworks"/*.framework; do
   name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$framework/Info.plist" 2>/dev/null)"
   [ -n "$name" ] && [ -f "$framework/$name" ] || fail "$(basename "$framework") has no Info.plist naming its executable"
 done
+# A script is code to the App Store, and flutter_assets carries a copy of everything in app/assets:
+# an upload holding a .py, .mjs or .sh is refused with 90035 "code object is not signed at all".
+scripts="$(find "$app" -type f \( -name '*.py' -o -name '*.mjs' -o -name '*.sh' \) | sed "s|$app/||" | sort | head -20 | tr '\n' ' ')"
+if [ -n "$scripts" ]; then
+  fail "the App Store refuses script files in the bundle as unsigned code (90035): $scripts"
+else
+  note 'archive scripts' 'no loose script files in the app bundle'
+fi
 
 # The same app as an unsigned .ipa, for a phone: a signing tool (Xcode, or one that signs with
 # an Apple ID) still has to sign it before it installs.
