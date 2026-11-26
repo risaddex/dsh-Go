@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>DSHCompanionAccessGroup</key>
-	<string>$(AppIdentifierPrefix)io.github.ccch1mneyyy.dshgo.companion-widget</string>
+	<string>$(AppIdentifierPrefix)com.danilo.dshgo.companion-widget</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
@@ -73,7 +73,7 @@
 			<key>UIApplicationShortcutItemTitle</key>
 			<string>New chat</string>
 			<key>UIApplicationShortcutItemType</key>
-			<string>io.github.ccch1mneyyy.dshgo.new</string>
+			<string>com.danilo.dshgo.new</string>
 		</dict>
 		<dict>
 			<key>UIApplicationShortcutItemIconSymbolName</key>
@@ -81,7 +81,7 @@
 			<key>UIApplicationShortcutItemTitle</key>
 			<string>Voice input</string>
 			<key>UIApplicationShortcutItemType</key>
-			<string>io.github.ccch1mneyyy.dshgo.voice</string>
+			<string>com.danilo.dshgo.voice</string>
 		</dict>
 	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
@@ -107,7 +107,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>io.github.ccch1mneyyy.dshgo</string>
+			<string>com.danilo.dshgo</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>dshgo</string>
@@ -125,7 +125,7 @@
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>io.github.ccch1mneyyy.dshgo.share</string>
+				<string>com.danilo.dshgo.share</string>
 			</array>
 		</dict>
 	</array>
@@ -139,7 +139,7 @@
 			<key>UTTypeDescription</key>
 			<string>DSH Go share</string>
 			<key>UTTypeIdentifier</key>
-			<string>io.github.ccch1mneyyy.dshgo.share</string>
+			<string>com.danilo.dshgo.share</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
