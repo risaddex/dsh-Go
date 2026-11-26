@@ -1,6 +1,6 @@
 ---
 name: ios-testflight
-description: Build DSH Go for iOS from the fork and ship it to TestFlight, including the bundle-id swap, the signing team, the 90035 script rule, the altool upload and export compliance. Use for every iOS build or TestFlight upload here, and for /ios-testflight.
+description: Build DSH Go for iOS from the fork and ship it to TestFlight, including the bundle-id and signing-team check, the 90035 script rule, the altool upload and export compliance. Use for every iOS build or TestFlight upload here, and for /ios-testflight.
 ---
 
 # TestFlight do DSH Go, a partir do fork
@@ -21,13 +21,12 @@ recebem. O caminho abaixo foi executado de ponta a ponta em 2026-11-26 (builds 1
 1. Clone do fork. **Não** rode `tooling/ios/prepare-engine.sh`: sem `app/ios/Engine/.ready` o
    `embed-engine.sh` imprime *"connects to remote hosts only"* e segue — é o desejado para o TestFlight
    (o app fica só cliente remoto, sem NodeMobile/iSH).
-2. Troque o bundle id em `app/ios`: `io.github.ccch1mneyyy.dshgo` → `com.danilo.dshgo`.
-   São ~14 arquivos: `project.pbxproj`, os três `.entitlements` (App Groups viram
-   `group.com.danilo.dshgo`, keychain-access-groups ficam com o prefixo do time), os dois `Info.plist`
-   (`DSHCompanionAccessGroup`), `ShareExtension/ShareInbox.swift` e os Swift do `Runner`.
-3. Assinatura: em **cada** configuração que tenha `PRODUCT_BUNDLE_IDENTIFIER`, grave
-   `DEVELOPMENT_TEAM = 7F3YZDJ6L8` e `CODE_SIGN_STYLE = Automatic` (Runner, ShareExtension,
-   CompanionWidget e as extensões). Certificado da máquina: "Apple Distribution: Ramtec Servicos De
+2. Confirme, sem editar nada, que o bundle id já é o do fork:
+   `grep -rn io.github.ccch1mneyyy.dshgo app/ios` tem de sair vazio — o `com.danilo.dshgo`
+   (App Group `group.com.danilo.dshgo`) já está no repositório.
+3. A assinatura também já está no projeto: `DEVELOPMENT_TEAM = 7F3YZDJ6L8` e
+   `CODE_SIGN_STYLE = Automatic` em todas as configurações com `PRODUCT_BUNDLE_IDENTIFIER`;
+   não edite nenhuma. Certificado da máquina: "Apple Distribution: Ramtec Servicos De
    Informatica Ltda".
 4. **Rode `tooling/ios/check-archive.sh` antes de compilar**: ele monta o archive sem assinatura e
    nomeia cada `.py`, `.mjs` e `.sh` solto no `Runner.app` — script no bundle conta como código e a
