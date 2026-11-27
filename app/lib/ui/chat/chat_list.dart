@@ -156,6 +156,9 @@ class ChatList extends ConsumerStatefulWidget {
 
 class _ChatListState extends ConsumerState<ChatList> with SingleTickerProviderStateMixin {
   late final _scroll = _TopBoundedScrollController(_leadingBoundary, _prependCorrection);
+  // Keep picks and dismissals above the rows: a result can move from inline
+  // to card-only, or be rebuilt after scrolling or a transcript refresh.
+  final _consumedSuggestionCards = <String>{};
   final _centerKey = GlobalKey();
   final _beforeKey = GlobalKey();
   final _historyKey = GlobalKey();
@@ -1500,6 +1503,12 @@ class _ChatListState extends ConsumerState<ChatList> with SingleTickerProviderSt
     return MarkdownImageScope(sessionId: widget.sessionId, baseDir: cwd, turn: turn, child: body);
   }
 
+  bool _consumeSuggestionCard(String callId) {
+    if (!_consumedSuggestionCards.add(callId)) return false;
+    _clearBuiltRows(() {});
+    return true;
+  }
+
   Widget _rowContent(ChatRow row) {
     return switch (row) {
       UserRow(:final item) when dshUiReplyChip(item.text) != null => DshUiReplyChip(label: dshUiReplyChip(item.text)!),
@@ -1520,6 +1529,8 @@ class _ChatListState extends ConsumerState<ChatList> with SingleTickerProviderSt
       ToolCallRow(:final item, :final card) => ToolRow(
         item: item,
         card: card,
+        suggestionConsumed: _consumedSuggestionCards.contains(item.callId),
+        consumeSuggestion: () => _consumeSuggestionCard(item.callId),
         onRespond: _respond,
         onAllowAll: _allowAll,
         autoAnswered: _autoAnswered,

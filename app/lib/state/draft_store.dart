@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../clipboard/binary_text.dart';
 import 'attachments.dart';
+import 'hosts_state.dart';
 
 /// What is in the composer of one conversation and not sent yet.
 class ChatDraft {
@@ -22,6 +23,13 @@ class DraftState {
 
   /// By session id; `new` is the new-chat screen.
   final Map<String, ChatDraft> drafts;
+
+  String keyForSession(HostRef host, String key) {
+    final scoped = scopedKey(host, key);
+    return drafts.containsKey(scoped) ? scoped : key;
+  }
+
+  static String scopedKey(HostRef host, String sessionId) => jsonEncode([host.kind.name, host.id, sessionId]);
 
   /// The saved texts are in (they arrive a moment after launch).
   final bool loaded;

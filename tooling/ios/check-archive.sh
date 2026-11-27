@@ -4,7 +4,13 @@
 # (no signing, and Release doesn't run on the simulator), so this builds one without signing and
 # looks inside for what a phone would need to get to its first frame.
 # Run from the repository root, with the engine prepared. Everything goes up as annotations.
+# To inspect an existing signed remote-only .xcarchive or .ipa instead, pass --remote-only PATH.
 set -uo pipefail
+
+if [[ ${1:-} == --remote-only ]]; then
+  shift
+  exec python3 -B "$(dirname "$0")/check-remote-artifact.py" "$@"
+fi
 
 note() { printf '::notice title=%s::%s\n' "$1" "$(printf '%s' "$2" | tr '\n' ' ' | cut -c1-900)"; }
 fail() { printf '::error title=archive::%s\n' "$(printf '%s' "$1" | tr '\n' ' ' | cut -c1-900)"; failed=1; }

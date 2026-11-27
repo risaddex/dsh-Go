@@ -2,6 +2,7 @@
   "chatBackgroundTaskNotice": "Background task notice",
   "chatBackgroundTaskMessage": "Background task message",
   "chatDeclineQuestion": "Skip",
+  "chatDismissSuggestions": "Dismiss suggestions",
   "chatChats": "Chats",
   "chatViewChatDetails": "View chat details",
   "chatUnsent": "Not sent",

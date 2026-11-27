@@ -1,0 +1,17 @@
+{
+  "deckPanelSearch": "Search by key or title",
+  "deckPanelFilter": "Filter tickets by status",
+  "deckPanelFilterValue": "Status: {value}",
+  "@deckPanelFilterValue": {"placeholders": {"value": {"type": "String"}}},
+  "deckPanelFilterAll": "All",
+  "deckPanelFilterBlocked": "Blocked",
+  "deckPanelFilterReady": "Ready",
+  "deckPanelOrder": "Sort loaded rows",
+  "deckPanelOrderValue": "Sort: {value}",
+  "@deckPanelOrderValue": {"placeholders": {"value": {"type": "String"}}},
+  "deckPanelOrderHost": "Host order",
+  "deckPanelOrderTitle": "Title",
+  "deckPanelOrderKey": "Key",
+  "deckPanelLoadedOnly": "Search, filters, and sorting apply only to loaded rows. Ready means no outstanding blockers, not unassigned.",
+  "deckPanelNoMatches": "No matches among loaded rows"
+}

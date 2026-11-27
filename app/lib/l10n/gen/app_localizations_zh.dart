@@ -3752,6 +3752,9 @@ class L10nZh extends L10n {
   String get chatDeclineQuestion => '不回答';
 
   @override
+  String get chatDismissSuggestions => '关闭建议';
+
+  @override
   String get chatChats => '对话列表';
 
   @override
@@ -7410,6 +7413,30 @@ class L10nZh extends L10n {
   String get deckPanelEmpty => '这个工作区没有打开的地图或规格';
 
   @override
+  String get deckPanelEmptyAll => '这个工作区没有打开的地图、规格或独立票';
+
+  @override
+  String get deckPanelStandalone => '独立票';
+
+  @override
+  String get deckPanelStandaloneUnavailable => '此主机不在这里列出独立票。';
+
+  @override
+  String get deckPanelCopyLink => '复制跟踪器链接';
+
+  @override
+  String get deckPanelOpenTracker => '在跟踪器中打开';
+
+  @override
+  String get deckPanelCopyPrompt => '复制提示词';
+
+  @override
+  String get deckPanelDraft => '用作对话草稿';
+
+  @override
+  String get deckPanelNewDraft => '在新对话中起草';
+
+  @override
   String get deckPanelTreeError => '无法读取 Deck';
 
   @override
@@ -7461,6 +7488,70 @@ class L10nZh extends L10n {
 
   @override
   String get deckPanelNoBlockers => '没有阻塞者';
+
+  @override
+  String get deckPanelCommentsTitle => '评论';
+
+  @override
+  String get deckPanelCommentsOpen => '加载评论';
+
+  @override
+  String get deckPanelCommentsMore => '加载更多评论';
+
+  @override
+  String get deckPanelCommentsLoading => '正在读取评论…';
+
+  @override
+  String get deckPanelCommentsEmpty => '暂无评论';
+
+  @override
+  String get deckPanelCommentsError => '无法加载评论';
+
+  @override
+  String get deckPanelCommentsTruncated => '部分评论内容或历史记录无法显示。';
+
+  @override
+  String get deckPanelSearch => '按编号或标题搜索';
+
+  @override
+  String get deckPanelFilter => '按状态筛选票';
+
+  @override
+  String deckPanelFilterValue(String value) {
+    return '状态：$value';
+  }
+
+  @override
+  String get deckPanelFilterAll => '全部';
+
+  @override
+  String get deckPanelFilterBlocked => '受阻';
+
+  @override
+  String get deckPanelFilterReady => '就绪';
+
+  @override
+  String get deckPanelOrder => '为已加载的条目排序';
+
+  @override
+  String deckPanelOrderValue(String value) {
+    return '排序：$value';
+  }
+
+  @override
+  String get deckPanelOrderHost => '主机顺序';
+
+  @override
+  String get deckPanelOrderTitle => '标题';
+
+  @override
+  String get deckPanelOrderKey => '编号';
+
+  @override
+  String get deckPanelLoadedOnly => '搜索、筛选和排序仅适用于已加载的条目。就绪表示没有未解除的阻塞，不代表尚未分配。';
+
+  @override
+  String get deckPanelNoMatches => '已加载的条目中没有匹配项';
 
   @override
   String get automaticDiagnosticsRecover => '恢复本地记录';

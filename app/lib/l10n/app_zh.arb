@@ -2291,6 +2291,7 @@
   "chatBackgroundTaskNotice": "后台任务通知",
   "chatBackgroundTaskMessage": "后台任务消息",
   "chatDeclineQuestion": "不回答",
+  "chatDismissSuggestions": "关闭建议",
   "chatChats": "对话列表",
   "chatViewChatDetails": "查看对话详情",
   "chatUnsent": "未发送",
@@ -4421,6 +4422,14 @@
   "deckPanelBack": "返回",
   "deckPanelLoading": "正在读取 Deck…",
   "deckPanelEmpty": "这个工作区没有打开的地图或规格",
+  "deckPanelEmptyAll": "这个工作区没有打开的地图、规格或独立票",
+  "deckPanelStandalone": "独立票",
+  "deckPanelStandaloneUnavailable": "此主机不在这里列出独立票。",
+  "deckPanelCopyLink": "复制跟踪器链接",
+  "deckPanelOpenTracker": "在跟踪器中打开",
+  "deckPanelCopyPrompt": "复制提示词",
+  "deckPanelDraft": "用作对话草稿",
+  "deckPanelNewDraft": "在新对话中起草",
   "deckPanelTreeError": "无法读取 Deck",
   "deckPanelTicketError": "无法读取这张票",
   "deckPanelTruncated": "这不是完整的树：Deck 在上限处截断了结果。",
@@ -4445,6 +4454,40 @@
   "deckPanelNoProgress": "还没有写进度",
   "deckPanelBlockers": "阻塞者",
   "deckPanelNoBlockers": "没有阻塞者",
+  "deckPanelCommentsTitle": "评论",
+  "deckPanelCommentsOpen": "加载评论",
+  "deckPanelCommentsMore": "加载更多评论",
+  "deckPanelCommentsLoading": "正在读取评论…",
+  "deckPanelCommentsEmpty": "暂无评论",
+  "deckPanelCommentsError": "无法加载评论",
+  "deckPanelCommentsTruncated": "部分评论内容或历史记录无法显示。",
+  "deckPanelSearch": "按编号或标题搜索",
+  "deckPanelFilter": "按状态筛选票",
+  "deckPanelFilterValue": "状态：{value}",
+  "@deckPanelFilterValue": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "deckPanelFilterAll": "全部",
+  "deckPanelFilterBlocked": "受阻",
+  "deckPanelFilterReady": "就绪",
+  "deckPanelOrder": "为已加载的条目排序",
+  "deckPanelOrderValue": "排序：{value}",
+  "@deckPanelOrderValue": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "deckPanelOrderHost": "主机顺序",
+  "deckPanelOrderTitle": "标题",
+  "deckPanelOrderKey": "编号",
+  "deckPanelLoadedOnly": "搜索、筛选和排序仅适用于已加载的条目。就绪表示没有未解除的阻塞，不代表尚未分配。",
+  "deckPanelNoMatches": "已加载的条目中没有匹配项",
   "automaticDiagnosticsRecover": "恢复本地记录",
   "automaticDiagnosticsRecoverHint": "仅在本机恢复分析记录，跳过已留存故障，不重新发送旧请求。",
   "automaticDiagnosticsTitle": "自动故障分析",

@@ -5,7 +5,11 @@
 import 'package:dsh_client/dsh_client.dart';
 import 'package:test/test.dart';
 
-Map<String, Object?> treeReply({String sessionId = 's1', List<Object?>? containers, Map<String, Object?> extra = const {}}) => {
+Map<String, Object?> treeReply({
+  String sessionId = 's1',
+  List<Object?>? containers,
+  Map<String, Object?> extra = const {},
+}) => {
   'ok': true,
   'sessionId': sessionId,
   'containers':
@@ -19,14 +23,7 @@ Map<String, Object?> treeReply({String sessionId = 's1', List<Object?>? containe
           'state': 'OPEN',
           'url': 'https://example.test/70',
           'tickets': [
-            {
-              'key': '83',
-              'number': 83,
-              'title': 'Forward',
-              'state': 'OPEN',
-              'url': '',
-              'blockedBy': <Object?>[],
-            },
+            {'key': '83', 'number': 83, 'title': 'Forward', 'state': 'OPEN', 'url': '', 'blockedBy': <Object?>[]},
             {
               'key': '84',
               'number': 84,
@@ -48,7 +45,7 @@ Map<String, Object?> treeReply({String sessionId = 's1', List<Object?>? containe
   ...extra,
 };
 
-Map<String, Object?> ticketReply({String sessionId = 's1'}) => {
+Map<String, Object?> ticketReply({String sessionId = 's1', Map<String, Object?> extra = const {}}) => {
   'ok': true,
   'sessionId': sessionId,
   'ticket': {
@@ -69,6 +66,7 @@ Map<String, Object?> ticketReply({String sessionId = 's1'}) => {
     'blockedBy': [
       {'key': 83, 'title': 'Forward', 'state': 'OPEN'},
     ],
+    ...extra,
   },
 };
 
@@ -106,10 +104,20 @@ void main() {
       final tree = await client.readDeckTree('s1');
 
       expect(carrier.sent.map((c) => c.$1), [deckPanelReadEndpoint]);
-      expect(carrier.sent.single.$2, {'operation': 'tree', 'sessionId': 's1'}, reason: 'the operation and the session id, nothing else');
-      expect(tree.containers.map((c) => (c.key, c.kind)), [('70', DeckContainerKind.spec), ('56', DeckContainerKind.map)]);
+      expect(carrier.sent.single.$2, {
+        'operation': 'tree',
+        'sessionId': 's1',
+      }, reason: 'the operation and the session id, nothing else');
+      expect(tree.containers.map((c) => (c.key, c.kind)), [
+        ('70', DeckContainerKind.spec),
+        ('56', DeckContainerKind.map),
+      ]);
       final tickets = tree.containers.first.tickets;
-      expect(tickets.map((t) => t.isFree), [true, false, false], reason: 'no blockers, an open blocker, unknown blockers');
+      expect(tickets.map((t) => t.isFree), [
+        true,
+        false,
+        false,
+      ], reason: 'no blockers, an open blocker, unknown blockers');
       expect(tree.containers.last.tickets, isEmpty);
       expect(tree.truncated, isFalse);
     });
@@ -151,9 +159,7 @@ void main() {
 
     test('carries the truncation signal and the omitted counts', () async {
       connect(capabilities: {deckPanelReadFeature});
-      carrier.replies[_treeKey] = treeReply(
-        extra: {'truncated': true, 'omittedContainers': 3, 'omittedTickets': 17},
-      );
+      carrier.replies[_treeKey] = treeReply(extra: {'truncated': true, 'omittedContainers': 3, 'omittedTickets': 17});
       final tree = await client.readDeckTree('s1');
       expect((tree.truncated, tree.omittedContainers, tree.omittedTickets), (true, 3, 17));
     });
@@ -161,7 +167,34 @@ void main() {
     test('an empty workspace is an empty tree, not a failure', () async {
       connect(capabilities: {deckPanelReadFeature});
       carrier.replies[_treeKey] = treeReply(containers: <Object?>[]);
-      expect((await client.readDeckTree('s1')).containers, isEmpty);
+      final tree = await client.readDeckTree('s1');
+      expect(tree.containers, isEmpty);
+      expect(tree.standaloneIssues, isNull);
+    });
+
+    test('distinguishes a confirmed empty standalone list from unsupported', () async {
+      connect(capabilities: {deckPanelReadFeature});
+      carrier.replies[_treeKey] = treeReply(containers: [], extra: {'standaloneIssues': []});
+      expect((await client.readDeckTree('s1')).standaloneIssues, isEmpty);
+      carrier.replies[_treeKey] = treeReply(
+        containers: [],
+        extra: {
+          'standaloneIssues': [
+            {'key': 'ENG-5', 'title': 'Loose', 'state': 'OPEN', 'blockedBy': []},
+          ],
+        },
+      );
+      expect((await client.readDeckTree('s1')).standaloneIssues!.single.key, 'ENG-5');
+    });
+
+    test('enforces the shared child and standalone limit', () async {
+      connect(capabilities: {deckPanelReadFeature});
+      carrier.replies[_treeKey] = treeReply(
+        extra: {
+          'standaloneIssues': List.generate(198, (i) => {'key': 'ENG-$i', 'state': 'OPEN'}),
+        },
+      );
+      await expectLater(client.readDeckTree('s1'), throwsA(isA<DshProtocolException>()));
     });
   });
 
@@ -172,13 +205,33 @@ void main() {
       final ticket = await client.readDeckTicket('s1', '84');
 
       expect(carrier.sent.map((c) => c.$1), [deckPanelReadEndpoint]);
-      expect(carrier.sent.single.$2, {'operation': 'ticket', 'sessionId': 's1', 'key': '84'}, reason: 'the operation, the session id and the key only');
+      expect(carrier.sent.single.$2, {
+        'operation': 'ticket',
+        'sessionId': 's1',
+        'key': '84',
+      }, reason: 'the operation, the session id and the key only');
       expect((ticket.title, ticket.state, ticket.isClosed), ('Panel', 'OPEN', false));
       expect(ticket.labels.single.name, 'ready-for-agent');
       expect(ticket.body, contains('Build it'));
       expect(ticket.acceptanceCriteria.map((a) => (a.text, a.done)), [('Shows tree', true), ('Shows ticket', false)]);
       expect((ticket.progress.percent, ticket.progress.note), (40, 'half'));
       expect(ticket.blockedBy!.single.key, '83', reason: 'a numeric blocker key is read as text');
+      expect(ticket.actions, isEmpty);
+    });
+
+    test('parses bounded draft actions without making a second host request', () async {
+      connect(capabilities: {deckPanelReadFeature});
+      carrier.replies[_ticketKey] = ticketReply(
+        extra: {
+          'actions': [
+            {'id': 'implement', 'label': 'Implement', 'prompt': '/implement #84\n'},
+            {'id': 'not-a-draft', 'label': 'Bad', 'prompt': 2},
+          ],
+        },
+      );
+      final action = (await client.readDeckTicket('s1', '84')).actions.single;
+      expect((action.id, action.label, action.prompt), ('implement', 'Implement', '/implement #84\n'));
+      expect(carrier.sent, hasLength(1));
     });
   });
 
@@ -201,17 +254,26 @@ void main() {
       await expectLater(client.readDeckTree('s1'), throwsA(isA<DshProtocolException>()));
     });
 
+    test('another ticket cannot supply workflow actions for the requested ticket', () async {
+      carrier.replies[_ticketKey] = ticketReply(extra: {'key': '85'});
+      await expectLater(client.readDeckTicket('s1', '84'), throwsA(isA<DshProtocolException>()));
+    });
+
     test('malformed replies are refused, not repaired', () async {
       final bad = <Object?>[
         'text',
         {'ok': true, 'sessionId': 's1'},
         {'ok': true, 'sessionId': 's1', 'containers': 'nope'},
-        treeReply(containers: [
-          {'key': '1', 'kind': 'epic', 'title': 'x', 'state': 'OPEN'},
-        ]),
-        treeReply(containers: [
-          {'kind': 'map', 'title': 'no key', 'state': 'OPEN'},
-        ]),
+        treeReply(
+          containers: [
+            {'key': '1', 'kind': 'epic', 'title': 'x', 'state': 'OPEN'},
+          ],
+        ),
+        treeReply(
+          containers: [
+            {'kind': 'map', 'title': 'no key', 'state': 'OPEN'},
+          ],
+        ),
         {'sessionId': 's1', 'containers': <Object?>[]},
       ];
       for (final reply in bad) {
@@ -247,10 +309,7 @@ void main() {
     });
 
     test('a reply over the deck byte bound is refused', () async {
-      carrier.replies[_ticketKey] = {
-        ...ticketReply(),
-        'padding': 'x' * deckReplyMaxBytes,
-      };
+      carrier.replies[_ticketKey] = {...ticketReply(), 'padding': 'x' * deckReplyMaxBytes};
       await expectLater(client.readDeckTicket('s1', '84'), throwsA(isA<DshProtocolException>()));
     });
 

@@ -65,17 +65,28 @@ abstract interface class NativeComposerHost {
 /// Hands the chat screen's composer (and its [ref], for controls drawn by
 /// plain widgets such as a reply's menu) to the plugin controls below it.
 class NativeComposerScope extends InheritedWidget {
-  const NativeComposerScope({super.key, required this.host, required this.ref, required super.child});
+  const NativeComposerScope({
+    super.key,
+    required this.host,
+    required this.ref,
+    this.replaceDraft,
+    required super.child,
+  });
 
   final NativeComposerHost host;
   final WidgetRef ref;
+
+  /// Replaces the editable draft text and focuses it, without sending.
+  /// Unavailable on a read-only conversation.
+  final ValueChanged<String>? replaceDraft;
 
   static NativeComposerScope? of(BuildContext context) => context.getInheritedWidgetOfExactType<NativeComposerScope>();
 
   static NativeComposerHost? maybeOf(BuildContext context) => of(context)?.host;
 
   @override
-  bool updateShouldNotify(NativeComposerScope oldWidget) => !identical(oldWidget.host, host);
+  bool updateShouldNotify(NativeComposerScope oldWidget) =>
+      !identical(oldWidget.host, host) || oldWidget.replaceDraft != replaceDraft;
 }
 
 // ── Controls at work ─────────────────────────────────────────────────────────

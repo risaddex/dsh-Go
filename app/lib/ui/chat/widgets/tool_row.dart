@@ -71,8 +71,12 @@ class ToolRow extends StatefulWidget {
     this.autoAnswered = const {},
     this.onOpenSubagent,
     this.card = ToolCardPlacement.inline,
+    this.suggestionConsumed = false,
+    this.consumeSuggestion,
   });
 
+  final bool suggestionConsumed;
+  final bool Function()? consumeSuggestion;
   final ToolChatItem item;
   final ApprovalResponder onRespond;
 
@@ -102,12 +106,11 @@ class _ToolRowState extends State<ToolRow> {
 
   ToolView get view => _view = ToolView.of(widget.item, _view);
 
-  bool _expandedFor(ToolView v) =>
-      _toggled ?? (widget.card == ToolCardPlacement.inline && (v.pluginView is DshUiParsed || v.media != null));
-
   @override
   Widget build(BuildContext context) {
     final v = view;
+    final suggestion = isDeckSuggestionCard(widget.item);
+    final parse = suggestion && widget.suggestionConsumed ? null : v.pluginView;
     // 一轮折叠后:只露卡片本身,工具行收在过程里。
     if (widget.card == ToolCardPlacement.cardOnly) {
       if (v.questionReplies.isNotEmpty) return QuestionReplyCard(replies: v.questionReplies);
@@ -117,15 +120,22 @@ class _ToolRowState extends State<ToolRow> {
           child: MediaCard(meta: media),
         );
       }
-      return switch (v.pluginView) {
-        final DshUiParsed parse => Padding(
+      return switch (parse) {
+        final DshUiParsed card => Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
-          child: PluginToolCard(parse: parse, fallback: const SizedBox.shrink(), details: false),
+          child: PluginToolCard(
+            parse: card,
+            fallback: const SizedBox.shrink(),
+            details: false,
+            suggestion: suggestion,
+            consumeSuggestion: widget.consumeSuggestion,
+          ),
         ),
         _ => const SizedBox.shrink(),
       };
     }
-    final expanded = _expandedFor(v);
+    final inlineCard = widget.card == ToolCardPlacement.inline;
+    final expanded = _toggled ?? (inlineCard && (parse is DshUiParsed || v.media != null));
     final request = widget.item.pendingApproval;
     final auto = request != null && widget.autoAnswered.contains(request.eventId);
     final pending = auto ? null : request;
@@ -141,7 +151,7 @@ class _ToolRowState extends State<ToolRow> {
           expanded: expanded,
           opens: child != null,
           // 卡片正摊开在下面(标题就在卡片上):行里照旧写参数摘要。
-          titled: !(expanded && widget.card == ToolCardPlacement.inline && v.pluginView is DshUiParsed),
+          titled: !(expanded && inlineCard && parse is DshUiParsed),
           onTap: () {
             if (child != null && opener!(child)) return;
             setState(() => _toggled = !expanded);
@@ -151,14 +161,16 @@ class _ToolRowState extends State<ToolRow> {
           open: expanded,
           child: Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 8),
-            child: switch (v.pluginView) {
+            child: switch (parse) {
               // 生成的图片 / 视频:媒体卡(折进过程里的那一行不画,卡片在外面)。
-              _ when v.media != null && widget.card == ToolCardPlacement.inline => MediaCard(meta: v.media!),
+              _ when v.media != null && inlineCard => MediaCard(meta: v.media!),
               // 插件工具带了原生卡片(meta["dsh-go/view"]);折进过程里的
               // 那一行不再画卡片(卡片在外面)。
-              final parse? when widget.card == ToolCardPlacement.inline => PluginToolCard(
-                parse: parse,
+              final card? when inlineCard => PluginToolCard(
+                parse: card,
                 fallback: ToolDetail(view: v),
+                suggestion: suggestion,
+                consumeSuggestion: widget.consumeSuggestion,
               ),
               _ => ToolDetail(view: v),
             },

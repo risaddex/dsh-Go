@@ -14,7 +14,11 @@ import 'package:flutter/services.dart' show TextEditingValue, TextSelection;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/l10n.dart';
+import 'connection_state.dart';
+import 'hosts_state.dart';
 import 'phone_skill_use.dart';
+import 'read_list_identity.dart';
+import 'sessions_state.dart';
 
 /// The confirmation once the word is in the composer.
 String get composerInsertedText => appL10n.stateComposerInserted;
@@ -22,13 +26,35 @@ String get composerInsertedText => appL10n.stateComposerInserted;
 /// A word waiting for the chat composer.
 @immutable
 class ComposerInsert {
-  const ComposerInsert({required this.token, required this.sessionId, this.skill}) : phoneSkill = null;
+  const ComposerInsert({required this.token, required this.sessionId, this.skill, this.replaceDraft = false})
+    : phoneSkill = null,
+      origin = null;
 
   /// `/name` for [skill] in [sessionId]'s composer (null: a new conversation).
-  const ComposerInsert.skill(String name, {required this.sessionId}) : token = '/$name', skill = name, phoneSkill = null;
+  const ComposerInsert.skill(String name, {required this.sessionId})
+    : token = '/$name',
+      skill = name,
+      phoneSkill = null,
+      origin = null,
+      replaceDraft = false;
 
   ComposerInsert.phoneRoute(PreparedPhoneSkill prepared)
-      : token = '', sessionId = prepared.origin.sessionId, skill = null, phoneSkill = prepared;
+    : token = '',
+      sessionId = prepared.origin.sessionId,
+      skill = null,
+      phoneSkill = prepared,
+      origin = null,
+      replaceDraft = false;
+
+  const ComposerInsert.workflow(this.token, {required String this.sessionId, required ComposerInsertOrigin this.origin})
+    : skill = null,
+      phoneSkill = null,
+      replaceDraft = true;
+
+  final ComposerInsertOrigin? origin;
+
+  /// Replaces the whole draft rather than inserting a word at the caret.
+  final bool replaceDraft;
 
   /// A route remains in a read-only in-memory card, never in the ordinary draft.
   final PreparedPhoneSkill? phoneSkill;
@@ -46,13 +72,34 @@ class ComposerInsert {
 
   @override
   bool operator ==(Object other) =>
-      other is ComposerInsert && other.token == token && other.sessionId == sessionId && other.skill == skill && identical(other.phoneSkill, phoneSkill);
+      other is ComposerInsert &&
+      other.token == token &&
+      other.sessionId == sessionId &&
+      other.skill == skill &&
+      other.replaceDraft == replaceDraft &&
+      identical(other.origin, origin) &&
+      identical(other.phoneSkill, phoneSkill);
 
   @override
-  int get hashCode => Object.hash(token, sessionId, skill, phoneSkill);
+  int get hashCode => Object.hash(token, sessionId, skill, phoneSkill, replaceDraft, origin);
 
   @override
   String toString() => 'ComposerInsert($token → ${sessionId ?? 'new'})';
+}
+
+class ComposerInsertOrigin {
+  const ComposerInsertOrigin(this.host, this.connection, this.sessionId, this.selectionRevision);
+
+  final HostRef host;
+  final HostConnection connection;
+  final String sessionId;
+  final int selectionRevision;
+
+  bool current(ProviderContainer container) =>
+      container.read(activeHostProvider) == host &&
+      identical(container.read(readListLiveConnectionProvider)?.client, connection.client) &&
+      container.read(currentSessionProvider) == sessionId &&
+      container.read(currentSessionProvider.notifier).selectionRevision == selectionRevision;
 }
 
 /// One [ComposerInsert] at a time. The page that asks calls [request] and goes

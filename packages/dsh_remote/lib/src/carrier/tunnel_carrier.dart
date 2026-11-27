@@ -127,6 +127,7 @@ const Set<String> harnessRemoteAllowlist = {
   // scoped by a session id. A Host serves it only while it announces the
   // feature; the App asks only then (`supportsDeckPanel`).
   'deck.panel.read',
+  deckPanelCommentsEndpoint,
 };
 
 /// Endpoints a Host serves as its own RPC methods rather than as Gateway
@@ -136,7 +137,7 @@ const Set<String> harnessRemoteAllowlist = {
 /// session's RPC channel, the same way `remote.history.configure` is. Sending
 /// one through the Gateway is refused there as an unknown request shape, which
 /// is what the first real-device run of #75 saw (`INVALID_MESSAGE`).
-const Set<String> hostMethodEndpoints = {'deck.panel.read'};
+const Set<String> hostMethodEndpoints = {'deck.panel.read', deckPanelCommentsEndpoint};
 
 /// Endpoints whose binary results arrive as a base64 `data` string over the
 /// tunnel (locally they are multipart, which the HTTP carrier rejects).

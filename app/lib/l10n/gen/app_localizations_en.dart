@@ -3949,6 +3949,9 @@ class L10nEn extends L10n {
   String get chatDeclineQuestion => 'Skip';
 
   @override
+  String get chatDismissSuggestions => 'Dismiss suggestions';
+
+  @override
   String get chatChats => 'Chats';
 
   @override
@@ -7872,6 +7875,30 @@ class L10nEn extends L10n {
   String get deckPanelEmpty => 'No open maps or specs in this workspace';
 
   @override
+  String get deckPanelEmptyAll => 'No open maps, specs, or standalone issues in this workspace';
+
+  @override
+  String get deckPanelStandalone => 'Standalone issues';
+
+  @override
+  String get deckPanelStandaloneUnavailable => 'This host does not list standalone issues here.';
+
+  @override
+  String get deckPanelCopyLink => 'Copy tracker link';
+
+  @override
+  String get deckPanelOpenTracker => 'Open in tracker';
+
+  @override
+  String get deckPanelCopyPrompt => 'Copy prompt';
+
+  @override
+  String get deckPanelDraft => 'Use as chat draft';
+
+  @override
+  String get deckPanelNewDraft => 'Draft in a new chat';
+
+  @override
   String get deckPanelTreeError => 'Couldn’t read the deck';
 
   @override
@@ -7923,6 +7950,71 @@ class L10nEn extends L10n {
 
   @override
   String get deckPanelNoBlockers => 'No blockers';
+
+  @override
+  String get deckPanelCommentsTitle => 'Comments';
+
+  @override
+  String get deckPanelCommentsOpen => 'Load comments';
+
+  @override
+  String get deckPanelCommentsMore => 'Load more comments';
+
+  @override
+  String get deckPanelCommentsLoading => 'Reading comments…';
+
+  @override
+  String get deckPanelCommentsEmpty => 'No comments';
+
+  @override
+  String get deckPanelCommentsError => 'Couldn’t load comments';
+
+  @override
+  String get deckPanelCommentsTruncated => 'Some comment content or history could not be shown.';
+
+  @override
+  String get deckPanelSearch => 'Search by key or title';
+
+  @override
+  String get deckPanelFilter => 'Filter tickets by status';
+
+  @override
+  String deckPanelFilterValue(String value) {
+    return 'Status: $value';
+  }
+
+  @override
+  String get deckPanelFilterAll => 'All';
+
+  @override
+  String get deckPanelFilterBlocked => 'Blocked';
+
+  @override
+  String get deckPanelFilterReady => 'Ready';
+
+  @override
+  String get deckPanelOrder => 'Sort loaded rows';
+
+  @override
+  String deckPanelOrderValue(String value) {
+    return 'Sort: $value';
+  }
+
+  @override
+  String get deckPanelOrderHost => 'Host order';
+
+  @override
+  String get deckPanelOrderTitle => 'Title';
+
+  @override
+  String get deckPanelOrderKey => 'Key';
+
+  @override
+  String get deckPanelLoadedOnly =>
+      'Search, filters, and sorting apply only to loaded rows. Ready means no outstanding blockers, not unassigned.';
+
+  @override
+  String get deckPanelNoMatches => 'No matches among loaded rows';
 
   @override
   String get automaticDiagnosticsRecover => 'Recover local records';

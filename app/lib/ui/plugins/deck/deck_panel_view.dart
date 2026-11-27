@@ -1,12 +1,14 @@
-// The deck's read-only panel (spec #70, deck.panel.read.v1) in 对话详情's
-// 「插件」 tab: the open maps and specs of the conversation's workspace with
-// their tickets, and one ticket's detail on demand.
+// The deck panel (deck.panel.read.v1) in the conversation's Plugins tab:
+// open maps and specs with their tickets, optional standalone tickets, and
+// one ticket's detail on demand.
 //
 // What it reads, and when: the tree once when it opens and again only when
 // the person taps Refresh; one ticket each time one is opened. What it read
 // lives in this widget's state alone: no cache between interactions, no timer,
-// no polling. Going back from a ticket shows the tree already read. There is
-// no write, comment or prompt control anywhere on it.
+// no polling. Going back from a ticket shows the tree already read. Optional
+// workflow prompts only prepare a draft; this view never sends or writes to the tracker.
+
+import 'dart:async';
 
 import 'package:dsh_client/dsh_client.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +16,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../l10n/l10n.dart';
 import '../../../plugins/deck/deck_panel_state.dart';
+import '../../../state/agents_state.dart';
+import '../../../state/composer_insert.dart';
+import '../../../state/hosts_state.dart';
+import '../../../state/read_list_identity.dart';
+import '../../../state/sessions_state.dart';
+import '../../../state/workspaces_state.dart';
 import '../../common/app_sheet.dart' show groupTitleStyle;
 import '../../common/label_chip.dart';
 import '../../common/empty_view.dart';
@@ -21,6 +29,10 @@ import '../../common/list_page_row.dart';
 import '../../common/status_chip.dart';
 import '../../theme/app_icons.dart';
 import '../../theme/theme.dart';
+import 'deck_panel_comments.dart';
+import 'deck_ticket_controls.dart';
+import 'deck_tree_filter.dart';
+import 'deck_tree_toolbar.dart';
 
 class DeckPanelView extends ConsumerStatefulWidget {
   const DeckPanelView({super.key, required this.sessionId});
@@ -33,6 +45,9 @@ class DeckPanelView extends ConsumerStatefulWidget {
 
 class _DeckPanelViewState extends ConsumerState<DeckPanelView> {
   AsyncValue<DeckTree> _tree = const AsyncLoading();
+  final _treeSearch = TextEditingController();
+  DeckTreeStatus _treeStatus = DeckTreeStatus.all;
+  DeckTreeOrder _treeOrder = DeckTreeOrder.host;
 
   /// The ticket whose detail is showing; null shows the tree.
   String? _openKey;
@@ -42,6 +57,7 @@ class _DeckPanelViewState extends ConsumerState<DeckPanelView> {
   /// kind (a refresh, another ticket, Back in the meantime) is dropped.
   int _treeRun = 0;
   int _ticketRun = 0;
+  bool _creatingDraftSession = false;
 
   @override
   void initState() {
@@ -53,10 +69,23 @@ class _DeckPanelViewState extends ConsumerState<DeckPanelView> {
   void didUpdateWidget(DeckPanelView old) {
     super.didUpdateWidget(old);
     if (old.sessionId != widget.sessionId) {
+      _resetTreeNavigation();
       _openKey = null;
       _ticketRun++;
       _startTree();
     }
+  }
+
+  @override
+  void dispose() {
+    _treeSearch.dispose();
+    super.dispose();
+  }
+
+  void _resetTreeNavigation() {
+    _treeSearch.clear();
+    _treeStatus = DeckTreeStatus.all;
+    _treeOrder = DeckTreeOrder.host;
   }
 
   void _startTree() {
@@ -74,7 +103,9 @@ class _DeckPanelViewState extends ConsumerState<DeckPanelView> {
     } on Object catch (e, s) {
       result = AsyncError(e, s);
     }
-    if (mounted && run == _treeRun) setState(() => _tree = result);
+    if (mounted && run == _treeRun && identical(ref.read(deckPanelReaderProvider), reader)) {
+      setState(() => _tree = result);
+    }
   }
 
   void _openTicket(String key) {
@@ -95,7 +126,9 @@ class _DeckPanelViewState extends ConsumerState<DeckPanelView> {
     } on Object catch (e, s) {
       result = AsyncError(e, s);
     }
-    if (mounted && run == _ticketRun) setState(() => _ticket = result);
+    if (mounted && run == _ticketRun && identical(ref.read(deckPanelReaderProvider), reader)) {
+      setState(() => _ticket = result);
+    }
   }
 
   void _back() => setState(() {
@@ -105,6 +138,14 @@ class _DeckPanelViewState extends ConsumerState<DeckPanelView> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(deckPanelReaderProvider, (previous, next) {
+      if (identical(previous, next)) return;
+      _resetTreeNavigation();
+      _openKey = null;
+      _ticketRun++;
+      _ticket = const AsyncLoading();
+      _startTree();
+    });
     if (ref.watch(deckPanelReaderProvider) == null) return const SizedBox.shrink();
     final open = _openKey;
     return PopScope(
@@ -138,28 +179,113 @@ class _DeckPanelViewState extends ConsumerState<DeckPanelView> {
           actionLabel: l10n.deckPanelRetry,
           onAction: () => setState(_startTree),
         ),
-        data: (tree) => _TreeBody(tree: tree, onOpen: _openTicket),
+        data: (tree) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DeckTreeToolbar(
+              search: _treeSearch,
+              onSearchChanged: (_) => setState(() {}),
+              status: _treeStatus,
+              onStatusChanged: (status) => setState(() => _treeStatus = status),
+              order: _treeOrder,
+              onOrderChanged: (order) => setState(() => _treeOrder = order),
+            ),
+            _TreeBody(tree: tree, query: _treeSearch.text, status: _treeStatus, order: _treeOrder, onOpen: _openTicket),
+          ],
+        ),
       ),
     ];
   }
 
+  String? _workspaceId(WorkspacesState registry) {
+    for (final workspace in registry.workspaces) {
+      if (workspace.sessionIds.contains(widget.sessionId)) return workspace.workspaceId;
+    }
+    return null;
+  }
+
+  Future<void> _useDraft(String prompt, {required bool fresh, required int run}) async {
+    if (!mounted || run != _ticketRun || _creatingDraftSession || ModalRoute.of(context)?.isCurrent != true) return;
+    final sessionId = widget.sessionId;
+    final container = ProviderScope.containerOf(context, listen: false);
+    final host = ref.read(activeHostProvider);
+    final connection = ref.read(readListLiveConnectionProvider);
+    if (connection == null) return;
+    final origin = ComposerInsertOrigin(
+      host,
+      connection,
+      sessionId,
+      ref.read(currentSessionProvider.notifier).selectionRevision,
+    );
+    final reader = ref.read(deckPanelReaderProvider);
+    final workspaceId = fresh ? _workspaceId(ref.read(workspacesProvider)) : null;
+    bool visible() => mounted && run == _ticketRun && ModalRoute.of(context)?.isCurrent == true;
+    bool current() => visible() && origin.current(container) && identical(ref.read(deckPanelReaderProvider), reader);
+    bool sameWorkspace() => workspaceId == _workspaceId(ref.read(workspacesProvider));
+    void showFailure() =>
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(context.l10n.chatCreateFailed)));
+
+    if (!current()) return;
+    var target = sessionId;
+    if (fresh) {
+      if (workspaceId == null) return;
+      setState(() => _creatingDraftSession = true);
+      try {
+        target = (await connection.client.createSession(workspaceId: workspaceId)).sessionId;
+        if (!current()) return;
+        if (!sameWorkspace() || target.isEmpty) {
+          showFailure();
+          return;
+        }
+      } on Object {
+        if (current()) showFailure();
+        return;
+      } finally {
+        if (mounted) setState(() => _creatingDraftSession = false);
+      }
+    } else if (ref.read(subagentParentProvider(sessionId))?.address.mode == SubagentMode.oneShot) {
+      return;
+    }
+    _back();
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    container
+        .read(composerInsertProvider.notifier)
+        .request(ComposerInsert.workflow(prompt, sessionId: target, origin: origin));
+  }
+
   List<Widget> _detailChildren(BuildContext context, String key) {
     final l10n = context.l10n;
+    final run = _ticketRun;
+    final hasConnection = ref.watch(readListLiveConnectionProvider) != null;
+    final workspace = _workspaceId(ref.watch(workspacesProvider));
+    final readOnly = ref.watch(
+      subagentParentProvider(widget.sessionId).select((p) => p?.address.mode == SubagentMode.oneShot),
+    );
+
     return [
       Align(
         alignment: AlignmentDirectional.centerStart,
-        child: TextButton.icon(
-          onPressed: _back,
-          icon: const Icon(AppIcons.back),
-          label: Text(l10n.deckPanelBack),
-        ),
+        child: TextButton.icon(onPressed: _back, icon: const Icon(AppIcons.back), label: Text(l10n.deckPanelBack)),
       ),
       _ticket.when(
         loading: () => const _Loading(),
         // A ticket failure stays here and the tree behind it is kept; Back is
         // the way out.
         error: (_, _) => EmptyView(icon: AppIcons.error, title: l10n.deckPanelTicketError),
-        data: (ticket) => _TicketBody(ticket: ticket),
+        data: (ticket) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DeckTicketControls(
+              ticket: ticket,
+              onDraft: !hasConnection || readOnly ? null : (text) => _useDraft(text, fresh: false, run: run),
+              onNewDraft: !hasConnection || workspace == null || _creatingDraftSession
+                  ? null
+                  : (text) => _useDraft(text, fresh: true, run: run),
+            ),
+            _TicketBody(ticket: ticket),
+            DeckPanelComments(sessionId: widget.sessionId, ticketKey: key),
+          ],
+        ),
       ),
     ];
   }
@@ -180,24 +306,32 @@ class _Loading extends StatelessWidget {
   );
 }
 
-/// `84` reads as `#84`; a key like `OMB-923` is already what people say.
-String _shortKey(String key) => RegExp(r'^\d+$').hasMatch(key) ? '#$key' : key;
+String _shortKey(String key) => deckDisplayKey(key);
 
 String _stateLabel(BuildContext context, {required bool closed}) =>
     closed ? context.l10n.deckPanelStateClosed : context.l10n.deckPanelStateOpen;
 
 class _TreeBody extends StatelessWidget {
-  const _TreeBody({required this.tree, required this.onOpen});
+  const _TreeBody({
+    required this.tree,
+    required this.query,
+    required this.status,
+    required this.order,
+    required this.onOpen,
+  });
 
   final DeckTree tree;
+  final String query;
+  final DeckTreeStatus status;
+  final DeckTreeOrder order;
   final void Function(String key) onOpen;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    if (tree.containers.isEmpty) {
-      return EmptyView(icon: AppIcons.todo, title: l10n.deckPanelEmpty, compact: true);
-    }
+    final (:groups, :standalone) = filterDeckTree(tree, query: query, status: status, order: order);
+    final noRows = groups.isEmpty && (standalone?.isEmpty ?? true);
+    final isFiltering = query.trim().isNotEmpty || status != DeckTreeStatus.all;
     final colors = DshColors.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -214,7 +348,20 @@ class _TreeBody extends StatelessWidget {
               ],
             ),
           ),
-        for (final container in tree.containers) ...[
+        if (noRows && (isFiltering || !tree.truncated))
+          EmptyView(
+            icon: AppIcons.todo,
+            title: isFiltering
+                ? l10n.deckPanelNoMatches
+                : (standalone == null ? l10n.deckPanelEmpty : l10n.deckPanelEmptyAll),
+            compact: true,
+          ),
+        if (standalone == null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Text(l10n.deckPanelStandaloneUnavailable),
+          ),
+        for (final (:container, :tickets) in groups) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
             child: Row(
@@ -227,21 +374,37 @@ class _TreeBody extends StatelessWidget {
                 Expanded(
                   child: Semantics(
                     header: true,
-                    child: Text(
-                      '${_shortKey(container.key)} ${container.title}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall,
+                    child: TextButton(
+                      onPressed: () => onOpen(container.key),
+                      style: TextButton.styleFrom(alignment: AlignmentDirectional.centerStart),
+                      child: Text(
+                        '${_shortKey(container.key)} ${container.title}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          if (container.tickets.isNotEmpty)
+          if (tickets.isNotEmpty)
             ListPageCard(
-              children: [for (final ticket in container.tickets) _TicketRow(ticket: ticket, onOpen: onOpen)],
+              children: [for (final ticket in tickets) _TicketRow(ticket: ticket, onOpen: onOpen)],
             ),
+        ],
+        if (standalone != null && standalone.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+            child: Semantics(
+              header: true,
+              child: Text(l10n.deckPanelStandalone, style: Theme.of(context).textTheme.titleSmall),
+            ),
+          ),
+          ListPageCard(
+            children: [for (final ticket in standalone) _TicketRow(ticket: ticket, onOpen: onOpen)],
+          ),
         ],
       ],
     );
@@ -306,9 +469,7 @@ class _TicketBody extends StatelessWidget {
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: [
-                  for (final label in ticket.labels) LabelChip(name: label.name, colorHex: label.color),
-                ],
+                children: [for (final label in ticket.labels) LabelChip(name: label.name, colorHex: label.color)],
               ),
             ),
           _Section(

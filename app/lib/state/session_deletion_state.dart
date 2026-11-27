@@ -169,7 +169,9 @@ class SessionDeletionController extends Notifier<bool> {
           if (!owned()) break;
           deleted.add(id);
           ref.read(readListCacheProvider).invalidateKind(ReadListKind.sessions, identity);
-          ref.read(draftStoreProvider.notifier).forget(id);
+          final drafts = ref.read(draftStoreProvider.notifier);
+          drafts.forget(DraftState.scopedKey(ref.read(activeHostProvider), id));
+          drafts.forget(id);
           if (!owned()) break;
           ref.read(composerQuoteProvider.notifier).clear(id);
           if (!owned()) break;

@@ -8,7 +8,7 @@ dsh-go connects to three kinds of host: the on-device engine, SSH hosts and rela
 | SSH host | ✅ | Phase 2 (the bridge cannot be installed on SSH hosts yet) | ✅ |
 | Relay host | ✅ (with the log) | ❌ the relay does not pass `/dsh-go/*` (the deck's read-only panel is the one exception, see below) | ❌ |
 
-**The deck's read-only panel on a relay host**: the relay does not forward `/dsh-go/*`, but a DSH Remote host can announce `deck.panel.read.v1` in the capability negotiation. The app shows the deck panel in a chat's details › Plugins only when the connected host announced it, and sends only two reads (`tree`, `ticket`), carrying the session id and no path. Hosts that did not announce it, the on-device engine and SSH hosts behave as before and show no empty page or error row.
+**The deck's read-only panel on a relay host**: the relay does not forward `/dsh-go/*`, but a DSH Remote host can announce `deck.panel.read.v1` in the capability negotiation. The app shows the Deck panel in a chat's details › Plugins only when the connected host announces it. `tree` and `ticket` reads are session-scoped and carry no path. Hosts with the extensions list standalone issues separately and can offer prompts in a ticket's detail: copy the text, put it in the current chat's draft, or open a new draft in the known workspace. None of these actions sends a message or writes to the tracker. When the host also announces `deck.panel.comments.v1`, open **Comments** in a ticket to read paginated comments. This does not post or edit comments. Older hosts still show maps, specs, and child tickets; hosts without the feature, the on-device engine, and SSH hosts do not show this panel.
 
 ## Installing a local plugin
 

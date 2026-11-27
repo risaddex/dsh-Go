@@ -4,11 +4,13 @@
 // picked skill always goes out as a message, never as a look-alike command.
 
 import 'package:dsh_app/runtime/runtime_state.dart';
+import 'package:dsh_app/state/agents_state.dart';
 import 'package:dsh_app/state/chat_state.dart';
 import 'package:dsh_app/state/composer_insert.dart';
 import 'package:dsh_app/state/connection_state.dart';
 import 'package:dsh_app/state/draft_store.dart';
 import 'package:dsh_app/state/hosts_state.dart';
+import 'package:dsh_app/state/read_list_identity.dart';
 import 'package:dsh_app/state/sessions_state.dart';
 import 'package:dsh_app/ui/chat/chat_screen.dart';
 import 'package:dsh_app/ui/chat/composer.dart';
@@ -17,9 +19,11 @@ import 'package:dsh_app/ui/chat/empty_actions.dart';
 import 'package:dsh_app/ui/chat/empty_state.dart';
 import 'package:dsh_app/ui/safe_mode/engine_failure_card.dart';
 import 'package:dsh_app/ui/theme/app_icons.dart';
+import 'package:dsh_client/dsh_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../safe_mode/support.dart';
 import 'support/harness.dart';
@@ -38,6 +42,7 @@ bool _focused(WidgetTester tester) => tester.widget<TextField>(find.byType(TextF
 
 void main() {
   setUpAll(loadTestFonts);
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets('this conversation: at the caret, focused, confirmed', (tester) async {
     final container = await _pump(tester, ChatHarness(session: 's1', states: {'s1': const ChatState(loading: false)}));
@@ -103,6 +108,91 @@ void main() {
     expect(_field(tester).text, '/pdf ');
     expect(_focused(tester), isTrue);
     expect(container.read(draftStoreProvider).drafts['s1']?.text, '还没发的话');
+  });
+
+  testWidgets('a persisted Deck draft cannot appear in another host with the same chat ID', (tester) async {
+    final harness = ChatHarness(session: 's1', states: {'s1': const ChatState(loading: false)});
+    final container = await _pump(tester, harness);
+    final source = container.read(activeHostProvider);
+    final origin = ComposerInsertOrigin(
+      source,
+      container.read(readListLiveConnectionProvider)!,
+      's1',
+      container.read(currentSessionProvider.notifier).selectionRevision,
+    );
+    container
+        .read(composerInsertProvider.notifier)
+        .request(ComposerInsert.workflow('/implement #84', sessionId: 's1', origin: origin));
+    await pumpFrames(tester);
+    expect(_field(tester).text, '/implement #84');
+    await tester.enterText(find.byType(TextField), '/implement #84 edited');
+    await tester.runAsync(() => container.read(draftStoreProvider.notifier).flush());
+    container.invalidate(draftStoreProvider);
+    await pumpFrames(tester);
+    final host = container.read(activeHostProvider.notifier);
+    final chat = container.read(currentSessionProvider.notifier);
+    host.select(const HostRef.ssh('other'));
+    chat.select('s1');
+    await pumpFrames(tester);
+    expect(_field(tester).text, isEmpty);
+    expect(container.read(draftStoreProvider).drafts['new'], isNull);
+    host.select(source);
+    chat.select('s1');
+    await pumpFrames(tester);
+    expect(_field(tester).text, '/implement #84 edited');
+    expect(harness.controllers['s1']!.sent, isEmpty);
+  });
+
+  testWidgets('a pending Deck draft is not consumed by another host', (tester) async {
+    final container = await _pump(tester, ChatHarness(session: 's1', states: {'s1': const ChatState(loading: false)}));
+    final origin = ComposerInsertOrigin(
+      container.read(activeHostProvider),
+      container.read(readListLiveConnectionProvider)!,
+      's1',
+      container.read(currentSessionProvider.notifier).selectionRevision,
+    );
+    container.read(activeHostProvider.notifier).select(const HostRef.ssh('other'));
+    container.read(currentSessionProvider.notifier).select('s1');
+    final request = ComposerInsert.workflow('/implement #84', sessionId: 's1', origin: origin);
+    container.read(composerInsertProvider.notifier).request(request);
+    await pumpFrames(tester);
+    expect(_field(tester).text, isEmpty);
+    expect(container.read(composerInsertProvider), same(request));
+  });
+
+  testWidgets('a Deck request does not apply to a one-shot composer', (tester) async {
+    usePhoneView(tester);
+    final harness = ChatHarness(session: 's1', states: {'s1': const ChatState(loading: false)});
+    await tester.pumpWidget(
+      testApp(
+        const ChatScreen(),
+        overrides: [
+          ...harness.overrides,
+          subagentParentProvider('s1').overrideWithValue(
+            const SubagentParent(
+              address: SubagentAddress(parentSessionId: 'parent', childSessionId: 's1', mode: SubagentMode.oneShot),
+              label: 'child',
+              parentTitle: 'parent',
+            ),
+          ),
+        ],
+      ),
+    );
+    await pumpFrames(tester);
+    final container = ProviderScope.containerOf(tester.element(find.byType(ChatScreen)));
+    final host = container.read(activeHostProvider);
+    final origin = ComposerInsertOrigin(
+      host,
+      container.read(readListLiveConnectionProvider)!,
+      's1',
+      container.read(currentSessionProvider.notifier).selectionRevision,
+    );
+    container
+        .read(composerInsertProvider.notifier)
+        .request(ComposerInsert.workflow('/implement #84', sessionId: 's1', origin: origin));
+    await pumpFrames(tester);
+    expect(find.byType(TextField), findsNothing);
+    expect(container.read(draftStoreProvider).drafts[DraftState.scopedKey(host, 's1')], isNull);
   });
 
   testWidgets('asked before the chat was built', (tester) async {

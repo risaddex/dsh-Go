@@ -128,10 +128,15 @@ final class DeckTree {
     required this.truncated,
     required this.omittedContainers,
     required this.omittedTickets,
+    this.standaloneIssues,
   });
 
   final String sessionId;
   final List<DeckContainer> containers;
+
+  /// Null on older hosts; an empty list confirms there are no standalone rows
+  /// in this projection (subject to [truncated]).
+  final List<DeckTreeTicket>? standaloneIssues;
 
   /// Something was left out (the tracker's own listing, or a limit).
   final bool truncated;
@@ -159,7 +164,16 @@ final class DeckProgress {
   final String? updatedAt;
 }
 
-/// The `ticket` reply: no comments.
+/// A proposed composer draft, never an instruction to send or run directly.
+final class DeckTicketAction {
+  const DeckTicketAction({required this.id, required this.label, required this.prompt});
+
+  final String id;
+  final String label;
+  final String prompt;
+}
+
+/// The `ticket` reply: read-only fields and optional composer drafts.
 final class DeckTicketDetail {
   const DeckTicketDetail({
     required this.key,
@@ -172,6 +186,7 @@ final class DeckTicketDetail {
     required this.acceptanceCriteria,
     required this.progress,
     required this.blockedBy,
+    this.actions = const [],
   });
 
   final String key;
@@ -183,6 +198,7 @@ final class DeckTicketDetail {
   final String body;
   final List<DeckAcceptanceItem> acceptanceCriteria;
   final DeckProgress progress;
+  final List<DeckTicketAction> actions;
 
   /// Null when the tracker did not say; empty when it said none.
   final List<DeckBlocker>? blockedBy;
@@ -202,9 +218,8 @@ String _required(JsonMap map, String key) {
 
 /// An unreadable blocker fails the whole reply: dropping it would make a
 /// blocked ticket look free.
-List<DeckBlocker>? _blockers(Object? json) => json is List
-    ? [for (final b in json) DeckBlocker._from(b) ?? (throw _protocolError('unreadable blocker'))]
-    : null;
+List<DeckBlocker>? _blockers(Object? json) =>
+    json is List ? [for (final b in json) DeckBlocker._from(b) ?? (throw _protocolError('unreadable blocker'))] : null;
 
 DeckTreeTicket _treeTicket(Object? json) {
   final map = asMap(json) ?? (throw _protocolError('ticket row is not an object'));
@@ -236,6 +251,23 @@ DeckContainer _container(Object? json) {
   );
 }
 
+List<DeckTicketAction> _ticketActions(Object? json) {
+  if (json is! List || json.length > 8) return const [];
+  return [
+    for (final item in json)
+      if (asMap(item) case final entry?)
+        if ((_text(entry, 'id'), _text(entry, 'label'), _text(entry, 'prompt'))
+            case (final id, final label, final prompt)
+            when id.isNotEmpty &&
+                id.length <= 64 &&
+                label.trim().isNotEmpty &&
+                label.length <= 128 &&
+                prompt.trim().isNotEmpty &&
+                utf8.encode(prompt).length <= 24576)
+          DeckTicketAction(id: id, label: label, prompt: prompt),
+  ];
+}
+
 DeckTicketDetail _detail(Object? json) {
   final map = asMap(json) ?? (throw _protocolError('ticket is not an object'));
   final progress = asMapOrEmpty(map['progress']);
@@ -253,7 +285,8 @@ DeckTicketDetail _detail(Object? json) {
     body: _text(map, 'body'),
     acceptanceCriteria: [
       for (final a in asListOrEmpty(map['acceptanceCriteria']))
-        if (asMap(a) case final item?) DeckAcceptanceItem(text: _text(item, 'text'), done: asBool(item['done']) ?? false),
+        if (asMap(a) case final item?)
+          DeckAcceptanceItem(text: _text(item, 'text'), done: asBool(item['done']) ?? false),
     ],
     progress: DeckProgress(
       percent: asInt(progress['percent']),
@@ -261,6 +294,7 @@ DeckTicketDetail _detail(Object? json) {
       updatedAt: asString(progress['updatedAt']),
     ),
     blockedBy: _blockers(map['blockedBy']),
+    actions: _ticketActions(map['actions']),
   );
 }
 
@@ -274,9 +308,20 @@ extension DeckPanelApi on DshClient {
     final reply = await _deckRead({'operation': deckTreeOperation, 'sessionId': sessionId}, sessionId);
     final containers = reply['containers'];
     if (containers is! List) throw _protocolError('missing containers');
+    final standalone = reply['standaloneIssues'];
+    if (reply.containsKey('standaloneIssues') && standalone is! List) {
+      throw _protocolError('standaloneIssues is not a list');
+    }
+    final parsedContainers = [for (final c in containers) _container(c)];
+    final standaloneIssues = standalone is List ? [for (final t in standalone) _treeTicket(t)] : null;
+    if (standaloneIssues != null &&
+        parsedContainers.fold(standaloneIssues.length, (count, c) => count + c.tickets.length) > 200) {
+      throw _protocolError('over 200 tickets');
+    }
     return DeckTree(
       sessionId: sessionId,
-      containers: [for (final c in containers) _container(c)],
+      containers: parsedContainers,
+      standaloneIssues: standaloneIssues,
       truncated: reply['truncated'] == true,
       omittedContainers: asInt(reply['omittedContainers']) ?? 0,
       omittedTickets: asInt(reply['omittedTickets']) ?? 0,
@@ -285,18 +330,18 @@ extension DeckPanelApi on DshClient {
 
   /// `ticket`: one ticket's detail by its tracker [key].
   Future<DeckTicketDetail> readDeckTicket(String sessionId, String key) async {
-    final reply = await _deckRead(
-      {'operation': deckTicketOperation, 'sessionId': sessionId, 'key': key},
-      sessionId,
-    );
-    return _detail(reply['ticket']);
+    final reply = await _deckRead({'operation': deckTicketOperation, 'sessionId': sessionId, 'key': key}, sessionId);
+    final ticket = _detail(reply['ticket']);
+    if (ticket.key != key) throw _protocolError('another ticket');
+    return ticket;
   }
 
   Future<JsonMap> _deckRead(Map<String, Object?> args, String sessionId) async {
     final reply = asMap(await rpc.call(deckPanelReadEndpoint, args)) ?? (throw _protocolError('not an object'));
     // The ticket asks for an oversized reply to be a failure, and a relay in
     // between may not have bounded it: measure what actually arrived.
-    if (utf8.encode(jsonEncode(reply)).length > deckReplyMaxBytes) throw _protocolError('over $deckReplyMaxBytes bytes');
+    if (utf8.encode(jsonEncode(reply)).length > deckReplyMaxBytes)
+      throw _protocolError('over $deckReplyMaxBytes bytes');
     if (reply['ok'] == false) {
       final error = asMapOrEmpty(reply['error']);
       throw DshRemoteException(

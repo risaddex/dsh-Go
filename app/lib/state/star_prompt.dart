@@ -21,6 +21,7 @@ import '../phone/phone_channel.dart' show PhoneTaskStatus;
 import '../pets/pet_signals.dart' show petFocusProvider, petPendingProvider;
 import '../update/update_config.dart' show updateRepo;
 import 'draft_store.dart';
+import 'hosts_state.dart';
 import 'notify_state.dart' show appForegroundProvider, chatOnScreenProvider;
 import 'phone_state.dart' show phoneChannelProvider;
 import 'sessions_state.dart' show currentSessionProvider;
@@ -390,7 +391,8 @@ final phoneTaskSeenProvider = NotifierProvider<PhoneTaskSeenController, ({bool a
 final starPromptSceneProvider = Provider<StarPromptScene>((ref) {
   final phone = ref.watch(phoneTaskSeenProvider);
   final session = ref.watch(currentSessionProvider);
-  final draft = ref.watch(draftStoreProvider.select((s) => s.drafts[session ?? 'new']));
+  final host = ref.watch(activeHostProvider);
+  final draft = ref.watch(draftStoreProvider.select((s) => s.drafts[s.keyForSession(host, session ?? 'new')]));
   return StarPromptScene(
     onScreen: ref.watch(appForegroundProvider) && ref.watch(chatOnScreenProvider),
     running: ref.watch(petFocusProvider)?.running ?? false,

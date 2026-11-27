@@ -26,15 +26,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../chat/support/harness.dart';
 import '../native/support.dart';
 
-DeckTreeTicket ticket(
-  String key,
-  String title, {
-  String state = 'OPEN',
-  List<DeckBlocker>? blockedBy = const [],
-}) => DeckTreeTicket(key: key, number: int.tryParse(key), title: title, state: state, url: '', blockedBy: blockedBy);
+DeckTreeTicket ticket(String key, String title, {String state = 'OPEN', List<DeckBlocker>? blockedBy = const []}) =>
+    DeckTreeTicket(key: key, number: int.tryParse(key), title: title, state: state, url: '', blockedBy: blockedBy);
 
 DeckTree deckTree({
   List<DeckContainer>? containers,
+  List<DeckTreeTicket>? standaloneIssues,
   bool truncated = false,
   int omittedContainers = 0,
   int omittedTickets = 0,
@@ -52,7 +49,11 @@ DeckTree deckTree({
           url: '',
           tickets: [
             ticket('83', 'Forward the reads'),
-            ticket('84', 'Show the panel', blockedBy: const [DeckBlocker(key: '83', state: 'OPEN')]),
+            ticket(
+              '84',
+              'Show the panel',
+              blockedBy: const [DeckBlocker(key: '83', state: 'OPEN')],
+            ),
             ticket('85', 'Unknown blockers', blockedBy: null),
             ticket('71', 'Already shipped', state: 'CLOSED'),
           ],
@@ -70,6 +71,7 @@ DeckTree deckTree({
   truncated: truncated,
   omittedContainers: omittedContainers,
   omittedTickets: omittedTickets,
+  standaloneIssues: standaloneIssues,
 );
 
 const detail = DeckTicketDetail(
@@ -127,8 +129,8 @@ class _NoSettings extends EngineSettingsController {
 }
 
 /// A tunnel-like carrier that only announces features.
-class _Carrier extends DshCarrier {
-  _Carrier(this.capabilities);
+class FakeDeckCarrier extends DshCarrier {
+  FakeDeckCarrier(this.capabilities);
 
   final Set<String>? capabilities;
 
@@ -153,11 +155,13 @@ class _Carrier extends DshCarrier {
 }
 
 ProviderContainer container(Set<String>? capabilities) {
-  final client = DshClient.withCarrier(_Carrier(capabilities));
+  final client = DshClient.withCarrier(FakeDeckCarrier(capabilities));
   addTearDown(client.close);
   final c = ProviderContainer(
     overrides: [
-      activeConnectionProvider.overrideWithValue(AsyncData(HostConnection(client: client, label: 'relay', isLocal: false))),
+      activeConnectionProvider.overrideWithValue(
+        AsyncData(HostConnection(client: client, label: 'relay', isLocal: false)),
+      ),
       installedPluginsProvider.overrideWith(_Installed.new),
       webBootProvider.overrideWith((ref) async => null),
       bridgeInventoryProvider.overrideWith((ref) async => null),
@@ -185,7 +189,12 @@ List<Override> overrides(FakeDeckReader? reader) => [
 ];
 
 Future<void> openTab(WidgetTester tester, FakeDeckReader? reader) async {
-  await tester.pumpWidget(testApp(const Scaffold(body: SessionPluginsTab(sessionId: 's1')), overrides: overrides(reader)));
+  await tester.pumpWidget(
+    testApp(
+      const Scaffold(body: SessionPluginsTab(sessionId: 's1')),
+      overrides: overrides(reader),
+    ),
+  );
   await pumpFrames(tester);
 }
 
@@ -211,7 +220,10 @@ void main() {
     });
 
     test('a host that did not announce it, or a carrier with no negotiation, has neither', () async {
-      for (final capabilities in [<String>{'harness.remote.v3'}, null]) {
+      for (final capabilities in [
+        <String>{'harness.remote.v3'},
+        null,
+      ]) {
         final c = container(capabilities);
         expect(c.read(deckPanelReaderProvider), isNull, reason: '$capabilities');
         expect((await inventoryOf(c))!.occupantsFor(Slots.rightPaneTab), isEmpty, reason: '$capabilities');
@@ -321,7 +333,10 @@ void main() {
 
     testWidgets('a tree the deck cut at its limit says so', (tester) async {
       usePhoneView(tester);
-      await openTab(tester, FakeDeckReader()..treeResult = deckTree(truncated: true, omittedContainers: 3, omittedTickets: 9));
+      await openTab(
+        tester,
+        FakeDeckReader()..treeResult = deckTree(truncated: true, omittedContainers: 3, omittedTickets: 9),
+      );
       expect(find.textContaining('这不是完整的树'), findsOneWidget);
     });
 
@@ -379,7 +394,8 @@ void main() {
 
     testWidgets('a tree failure replaces the content with an error and Retry', (tester) async {
       usePhoneView(tester);
-      final reader = FakeDeckReader()..treeResult = const DshRemoteException('timeout', 'The deck read did not finish in time');
+      final reader = FakeDeckReader()
+        ..treeResult = const DshRemoteException('timeout', 'The deck read did not finish in time');
       await openTab(tester, reader);
       expect(find.text('无法读取 Deck'), findsOneWidget);
       expect(find.text('#70 Deck over remote'), findsNothing);
@@ -394,7 +410,10 @@ void main() {
 
     testWidgets('a malformed reply is a failure too', (tester) async {
       usePhoneView(tester);
-      await openTab(tester, FakeDeckReader()..treeResult = const DshProtocolException('deck panel reply: another session'));
+      await openTab(
+        tester,
+        FakeDeckReader()..treeResult = const DshProtocolException('deck panel reply: another session'),
+      );
       expect(find.text('无法读取 Deck'), findsOneWidget);
     });
 
@@ -428,7 +447,7 @@ void main() {
       expect(find.text('#70 Deck over remote'), findsOneWidget);
     });
 
-    testWidgets('read-only: no field, no write or comment control, no prompt control', (tester) async {
+    testWidgets('legacy reply: no field, write, comment or prompt control', (tester) async {
       usePhoneView(tester);
       await openTab(tester, FakeDeckReader());
       await tester.tap(find.text('#84 Show the panel'));
@@ -459,7 +478,16 @@ void main() {
                 title: long,
                 state: 'OPEN',
                 url: '',
-                tickets: [ticket('OMB-1235', long, blockedBy: [const DeckBlocker(key: 'OMB-1200', state: 'OPEN'), const DeckBlocker(key: 'OMB-1201', state: 'OPEN')])],
+                tickets: [
+                  ticket(
+                    'OMB-1235',
+                    long,
+                    blockedBy: [
+                      const DeckBlocker(key: 'OMB-1200', state: 'OPEN'),
+                      const DeckBlocker(key: 'OMB-1201', state: 'OPEN'),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),

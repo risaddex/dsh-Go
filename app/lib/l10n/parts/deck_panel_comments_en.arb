@@ -1,0 +1,9 @@
+{
+  "deckPanelCommentsTitle": "Comments",
+  "deckPanelCommentsOpen": "Load comments",
+  "deckPanelCommentsMore": "Load more comments",
+  "deckPanelCommentsLoading": "Reading comments…",
+  "deckPanelCommentsEmpty": "No comments",
+  "deckPanelCommentsError": "Couldn’t load comments",
+  "deckPanelCommentsTruncated": "Some comment content or history could not be shown."
+}

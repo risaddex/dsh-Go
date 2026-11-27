@@ -1,0 +1,17 @@
+{
+  "deckPanelSearch": "按编号或标题搜索",
+  "deckPanelFilter": "按状态筛选票",
+  "deckPanelFilterValue": "状态：{value}",
+  "@deckPanelFilterValue": {"placeholders": {"value": {"type": "String"}}},
+  "deckPanelFilterAll": "全部",
+  "deckPanelFilterBlocked": "受阻",
+  "deckPanelFilterReady": "就绪",
+  "deckPanelOrder": "为已加载的条目排序",
+  "deckPanelOrderValue": "排序：{value}",
+  "@deckPanelOrderValue": {"placeholders": {"value": {"type": "String"}}},
+  "deckPanelOrderHost": "主机顺序",
+  "deckPanelOrderTitle": "标题",
+  "deckPanelOrderKey": "编号",
+  "deckPanelLoadedOnly": "搜索、筛选和排序仅适用于已加载的条目。就绪表示没有未解除的阻塞，不代表尚未分配。",
+  "deckPanelNoMatches": "已加载的条目中没有匹配项"
+}

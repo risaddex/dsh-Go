@@ -280,6 +280,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
 
   /// The open conversation's id, or `new`.
   late String _draftKey;
+  late String _draftStorageKey;
+  late HostRef _draftHost;
 
   PreparedPhoneSkill? _preparedPhoneSkill;
   PreparedPhoneSkill? _sendingPhoneSkill;
@@ -326,7 +328,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     }
   }
 
-  void _saveDraft() => _draftStore.save(_draftKey, _input.text, _drafts);
+  void _saveDraft() => _draftStore.save(_draftStorageKey, _input.text, _drafts);
+
+  String _storageKey(String key) => ref.read(draftStoreProvider).keyForSession(_draftHost, key);
 
   /// Attachments first: setting the text saves both.
   void _showDraft(ChatDraft? draft) {
@@ -342,7 +346,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
 
   void _switchDraft(String? sessionId) {
     final key = sessionId ?? 'new';
-    if (key == _draftKey) return;
+    final host = ref.read(activeHostProvider);
+    if (key == _draftKey && host == _draftHost) return;
     _dropPreparedPhoneSkill();
     _draftScope = Object();
     _creating = null;
@@ -353,9 +358,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     _dismissedSlashText = null;
     _saveDraft();
     _draftKey = key;
+    _draftHost = host;
+    _draftStorageKey = _storageKey(key);
     _spoken = null;
     _editing = false;
-    setState(() => _showDraft(ref.read(draftStoreProvider).drafts[key]));
+    setState(() => _showDraft(ref.read(draftStoreProvider).drafts[_draftStorageKey]));
   }
 
   /// 没有会话时的错误(建会话失败),会话内的错误走 ChatState.error。
@@ -413,16 +420,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     _voiceFlag = ref.read(voiceInputActiveProvider.notifier);
     _voice.addListener(_reportVoice);
     _draftKey = ref.read(currentSessionProvider) ?? 'new';
+    _draftHost = ref.read(activeHostProvider);
+    _draftStorageKey = _storageKey(_draftKey);
     _draftStore = ref.read(draftStoreProvider.notifier);
     // Start reading what earlier sessions still owe before the first send.
     ref.read(owedSetupsProvider.notifier);
-    _showDraft(ref.read(draftStoreProvider).drafts[_draftKey]);
+    _showDraft(ref.read(draftStoreProvider).drafts[_draftStorageKey]);
     _input.addListener(_resetSlashDismissal);
     _input.addListener(_saveDraft);
     ref.listenManual(currentSessionProvider, (_, next) {
       // Another conversation: nothing of this one is read aloud any more.
       ref.read(readAloudProvider.notifier).stop();
       _switchDraft(next);
+    });
+    ref.listenManual(activeHostProvider, (previous, next) {
+      if (previous != next) _switchDraft(null);
     });
     ref.listenManual(activeConnectionProvider.select((c) => c.value?.client), (_, _) {
       _dropPreparedPhoneSkill();
@@ -437,7 +449,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     // Saved drafts arrive a moment after launch.
     ref.listenManual(draftStoreProvider.select((s) => s.loaded), (_, loaded) {
       if (loaded && _input.text.isEmpty) {
-        setState(() => _showDraft(ref.read(draftStoreProvider).drafts[_draftKey]));
+        _draftStorageKey = _storageKey(_draftKey);
+        setState(() => _showDraft(ref.read(draftStoreProvider).drafts[_draftStorageKey]));
       }
     });
     // Opening the chat counts as "open" for the balance (throttled to 1/min).
@@ -471,8 +484,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
   /// 技能 › 「在对话里用」/「新对话里用」: the word into that conversation's
   /// composer (null: a new one) at the caret, focused, confirmed above it.
   void _takeComposerInsert() {
-    final insert = ref.read(composerInsertProvider.notifier).take();
-    if (insert == null || !mounted) return;
+    final pending = ref.read(composerInsertProvider);
+    if (pending == null || !mounted) return;
+    final origin = pending.origin;
+    if (origin != null && !origin.current(ProviderScope.containerOf(context, listen: false))) return;
+    final insert = ref.read(composerInsertProvider.notifier).take()!;
+    if (origin != null && ref.read(subagentParentProvider(insert.sessionId!))?.address.mode == SubagentMode.oneShot)
+      return;
     if (insert.phoneSkill case final prepared?) {
       if (!prepared.origin.current(ProviderScope.containerOf(context, listen: false)) ||
           insert.sessionId != prepared.origin.sessionId) {
@@ -490,8 +508,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       ref.read(currentSessionProvider.notifier).select(insert.sessionId);
     }
     _switchDraft(insert.sessionId);
+    if (origin != null) {
+      final scoped = DraftState.scopedKey(origin.host, insert.sessionId!);
+      if (_draftStorageKey != scoped) _draftStore.clear(_draftStorageKey);
+      _draftStorageKey = scoped;
+    }
     if (insert.skill case final name?) _handedSkills.add(name);
-    _input.value = insertComposerToken(_input.value, insert.token);
+    _input.value = insert.replaceDraft
+        ? TextEditingValue(
+            text: insert.token,
+            selection: TextSelection.collapsed(offset: insert.token.length),
+          )
+        : insertComposerToken(_input.value, insert.token);
+    if (origin != null) _saveDraft();
     _focus.requestFocus();
     _composerToast(composerInsertedText);
   }
@@ -616,6 +645,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         model: ref.read(pendingModelProvider),
       );
       _draftKey = sessionId;
+      _draftStorageKey = _storageKey(sessionId);
       _saveDraft();
       if (!ownsCreation() || _draftKey != sessionId) return null;
       ref.read(currentSessionProvider.notifier).select(sessionId);
@@ -771,6 +801,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
         ref.read(composerQuoteProvider)[sessionId] != quote) {
       return;
     }
+    final storageKey = _draftStorageKey;
     setState(() => _drafts = const []);
     // A new message: the reply being read aloud is old news.
     ref.read(readAloudProvider.notifier).stop();
@@ -795,7 +826,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
       // A generation request, counted on top of its turn.
       if (ok && generate != null && mounted) ref.read(usageStatsProvider.notifier).count(UsageCount.gen);
     }
-    if (!ok && _sameHost(client)) _giveBack(sessionId, typed, drafts, quote: quote);
+    if (!ok && _sameHost(client)) _giveBack(sessionId, typed, drafts, quote: quote, storageKey: storageKey);
   }
 
   // A failed send belongs to the Host that accepted it. The controller may
@@ -811,20 +842,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
   bool _sameHost(DshClient client) => mounted && identical(ref.read(activeConnectionProvider).value?.client, client);
 
   /// 没发出去:把字、附件和引用还给那个对话(用户还没开始打新的才还)。
-  void _giveBack(String sessionId, String text, List<DraftAttachment> attachments, {String? quote}) {
+  void _giveBack(
+    String sessionId,
+    String text,
+    List<DraftAttachment> attachments, {
+    String? quote,
+    String? storageKey,
+  }) {
     final quotes = ref.read(composerQuoteProvider.notifier);
     if (quote != null && ref.read(composerQuoteProvider)[sessionId] == null) {
       quotes.set(sessionId, quote);
     }
+    final key = storageKey ?? _storageKey(sessionId);
     if (_draftKey != sessionId) {
       // Moved on to another conversation: back into its own draft.
-      if (ref.read(draftStoreProvider).drafts[sessionId] == null) {
-        _draftStore.save(sessionId, text, attachments);
+      if (ref.read(draftStoreProvider).drafts[key] == null &&
+          ref.read(draftStoreProvider).drafts[_storageKey(sessionId)] == null) {
+        _draftStore.save(key, text, attachments);
       }
       return;
     }
     if (_drafts.isEmpty) setState(() => _drafts = attachments);
     if (_input.text.isEmpty) {
+      if (storageKey != null) _draftStorageKey = storageKey;
       _input.value = TextEditingValue(
         text: text,
         selection: TextSelection.collapsed(offset: text.length),
@@ -1021,7 +1061,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     if (_draftKey != sessionId) {
       // The queue removal succeeded, but its text still belongs to that chat.
       // Preserve an existing draft as a whole, including its quote.
-      if (ref.read(draftStoreProvider).drafts[sessionId] == null) {
+      if (ref.read(draftStoreProvider).drafts[_storageKey(sessionId)] == null) {
         _giveBackLost(sessionId, [prompt]);
       }
       return;
@@ -1838,6 +1878,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
           body: NativeComposerScope(
             host: _nativeHost,
             ref: ref,
+            replaceDraft: readOnly ? null : _replaceDraft,
             child: PetStage(
               sessionId: sessionId,
               aside: typing,
@@ -2383,6 +2424,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
     _input.value = insertComposerToken(_input.value, text);
     _focus.requestFocus();
   }
+
+  void _replaceDraft(String text) => _compose(text, quoteChip: false);
 
   /// The activity strip: the running turn's trajectory.
   void _openRunningTrajectory(String sessionId) {

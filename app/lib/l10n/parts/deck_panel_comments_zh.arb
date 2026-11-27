@@ -1,0 +1,9 @@
+{
+  "deckPanelCommentsTitle": "评论",
+  "deckPanelCommentsOpen": "加载评论",
+  "deckPanelCommentsMore": "加载更多评论",
+  "deckPanelCommentsLoading": "正在读取评论…",
+  "deckPanelCommentsEmpty": "暂无评论",
+  "deckPanelCommentsError": "无法加载评论",
+  "deckPanelCommentsTruncated": "部分评论内容或历史记录无法显示。"
+}

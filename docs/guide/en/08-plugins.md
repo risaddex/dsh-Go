@@ -58,7 +58,13 @@ Turn off any of these places in the plugin's details. To turn off the whole plug
 
 The first time a plugin reads your draft, clipboard or a reply, it asks first. It reads only after you tap **Allow**, and only when you tap it. Once allowed, it can't be revoked separately; turn off that place or the plugin instead.
 
-The native UI needs the dsh-go bridge on the host: this phone's engine has it built in, remote hosts usually don't, and it never shows over DSH Remote. The one exception is the deck's read-only panel: when the DSH Remote host announces it, Plugins in a chat's details shows Deck, listing the open maps and specs and each ticket's details. It is read-only, and a host that doesn't announce it shows nothing.
+Most native plugin UI needs the dsh-go bridge on the host. This phone's engine has it built in, and DSH Remote does not forward that bridge.
+
+### Deck over DSH Remote
+
+Tap the conversation title to open its details. In **Plugins**, choose **Deck**. You can also swipe in the right side panel and open **Plugins** there. If the host supports the Deck panel, it lists open maps, specs and their tickets. Updated hosts can also list standalone issues and provide workflow prompts. Search and filters apply only to rows already loaded; a truncated result is not the full workspace.
+
+Open a ticket, map or spec to read its detail. Where a workflow action is available, copy its prompt or prepare it as a draft. The Deck does not send the draft or change the tracker when you tap a workflow action. Hosts that support comment reading show **Comments** on demand; you cannot post from this panel. An older host may omit standalone issues, workflow prompts or comments. Without Deck panel support, there is no Deck entry.
 
 ## DSH Go market
 

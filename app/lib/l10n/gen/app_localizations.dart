@@ -6962,6 +6962,12 @@ abstract class L10n {
   /// **'不回答'**
   String get chatDeclineQuestion;
 
+  /// No description provided for @chatDismissSuggestions.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭建议'**
+  String get chatDismissSuggestions;
+
   /// No description provided for @chatChats.
   ///
   /// In zh, this message translates to:
@@ -13764,6 +13770,54 @@ abstract class L10n {
   /// **'这个工作区没有打开的地图或规格'**
   String get deckPanelEmpty;
 
+  /// No description provided for @deckPanelEmptyAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'这个工作区没有打开的地图、规格或独立票'**
+  String get deckPanelEmptyAll;
+
+  /// No description provided for @deckPanelStandalone.
+  ///
+  /// In zh, this message translates to:
+  /// **'独立票'**
+  String get deckPanelStandalone;
+
+  /// No description provided for @deckPanelStandaloneUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'此主机不在这里列出独立票。'**
+  String get deckPanelStandaloneUnavailable;
+
+  /// No description provided for @deckPanelCopyLink.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制跟踪器链接'**
+  String get deckPanelCopyLink;
+
+  /// No description provided for @deckPanelOpenTracker.
+  ///
+  /// In zh, this message translates to:
+  /// **'在跟踪器中打开'**
+  String get deckPanelOpenTracker;
+
+  /// No description provided for @deckPanelCopyPrompt.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制提示词'**
+  String get deckPanelCopyPrompt;
+
+  /// No description provided for @deckPanelDraft.
+  ///
+  /// In zh, this message translates to:
+  /// **'用作对话草稿'**
+  String get deckPanelDraft;
+
+  /// No description provided for @deckPanelNewDraft.
+  ///
+  /// In zh, this message translates to:
+  /// **'在新对话中起草'**
+  String get deckPanelNewDraft;
+
   /// No description provided for @deckPanelTreeError.
   ///
   /// In zh, this message translates to:
@@ -13865,6 +13919,126 @@ abstract class L10n {
   /// In zh, this message translates to:
   /// **'没有阻塞者'**
   String get deckPanelNoBlockers;
+
+  /// No description provided for @deckPanelCommentsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'评论'**
+  String get deckPanelCommentsTitle;
+
+  /// No description provided for @deckPanelCommentsOpen.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载评论'**
+  String get deckPanelCommentsOpen;
+
+  /// No description provided for @deckPanelCommentsMore.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载更多评论'**
+  String get deckPanelCommentsMore;
+
+  /// No description provided for @deckPanelCommentsLoading.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在读取评论…'**
+  String get deckPanelCommentsLoading;
+
+  /// No description provided for @deckPanelCommentsEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无评论'**
+  String get deckPanelCommentsEmpty;
+
+  /// No description provided for @deckPanelCommentsError.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法加载评论'**
+  String get deckPanelCommentsError;
+
+  /// No description provided for @deckPanelCommentsTruncated.
+  ///
+  /// In zh, this message translates to:
+  /// **'部分评论内容或历史记录无法显示。'**
+  String get deckPanelCommentsTruncated;
+
+  /// No description provided for @deckPanelSearch.
+  ///
+  /// In zh, this message translates to:
+  /// **'按编号或标题搜索'**
+  String get deckPanelSearch;
+
+  /// No description provided for @deckPanelFilter.
+  ///
+  /// In zh, this message translates to:
+  /// **'按状态筛选票'**
+  String get deckPanelFilter;
+
+  /// No description provided for @deckPanelFilterValue.
+  ///
+  /// In zh, this message translates to:
+  /// **'状态：{value}'**
+  String deckPanelFilterValue(String value);
+
+  /// No description provided for @deckPanelFilterAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部'**
+  String get deckPanelFilterAll;
+
+  /// No description provided for @deckPanelFilterBlocked.
+  ///
+  /// In zh, this message translates to:
+  /// **'受阻'**
+  String get deckPanelFilterBlocked;
+
+  /// No description provided for @deckPanelFilterReady.
+  ///
+  /// In zh, this message translates to:
+  /// **'就绪'**
+  String get deckPanelFilterReady;
+
+  /// No description provided for @deckPanelOrder.
+  ///
+  /// In zh, this message translates to:
+  /// **'为已加载的条目排序'**
+  String get deckPanelOrder;
+
+  /// No description provided for @deckPanelOrderValue.
+  ///
+  /// In zh, this message translates to:
+  /// **'排序：{value}'**
+  String deckPanelOrderValue(String value);
+
+  /// No description provided for @deckPanelOrderHost.
+  ///
+  /// In zh, this message translates to:
+  /// **'主机顺序'**
+  String get deckPanelOrderHost;
+
+  /// No description provided for @deckPanelOrderTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'标题'**
+  String get deckPanelOrderTitle;
+
+  /// No description provided for @deckPanelOrderKey.
+  ///
+  /// In zh, this message translates to:
+  /// **'编号'**
+  String get deckPanelOrderKey;
+
+  /// No description provided for @deckPanelLoadedOnly.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索、筛选和排序仅适用于已加载的条目。就绪表示没有未解除的阻塞，不代表尚未分配。'**
+  String get deckPanelLoadedOnly;
+
+  /// No description provided for @deckPanelNoMatches.
+  ///
+  /// In zh, this message translates to:
+  /// **'已加载的条目中没有匹配项'**
+  String get deckPanelNoMatches;
 
   /// No description provided for @automaticDiagnosticsRecover.
   ///

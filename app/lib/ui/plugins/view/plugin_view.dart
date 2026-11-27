@@ -328,21 +328,33 @@ class PluginMark extends StatelessWidget {
 ///
 /// [details] 为 false 时只画卡片（一轮折叠后外露的那张）。
 class PluginToolCard extends StatelessWidget {
-  const PluginToolCard({super.key, required this.parse, required this.fallback, this.details = true});
+  const PluginToolCard({
+    super.key,
+    required this.parse,
+    required this.fallback,
+    this.details = true,
+    this.suggestion = false,
+    this.consumeSuggestion,
+  });
 
   final DshUiParse parse;
   final Widget fallback;
   final bool details;
+  final bool suggestion;
+  final bool Function()? consumeSuggestion;
+
+  Widget _surface(DshUiView view) =>
+      _ToolCardSurface(view: view, suggestion: suggestion, consumeSuggestion: consumeSuggestion);
 
   @override
   Widget build(BuildContext context) {
     return switch (parse) {
-      DshUiParsed(:final view) when !details => _ToolCardSurface(view: view),
+      DshUiParsed(:final view) when !details => _surface(view),
       DshUiParsed(:final view) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _ToolCardSurface(view: view),
+          _surface(view),
           const SizedBox(height: 4),
           _ToolCardDetails(child: fallback),
         ],
@@ -357,34 +369,56 @@ class PluginToolCard extends StatelessWidget {
 }
 
 class _ToolCardSurface extends StatelessWidget {
-  const _ToolCardSurface({required this.view});
+  const _ToolCardSurface({required this.view, required this.suggestion, required this.consumeSuggestion});
 
   final DshUiView view;
+  final bool suggestion;
+  final bool Function()? consumeSuggestion;
 
   @override
   Widget build(BuildContext context) {
     // 带 `insert` 的行借聊天页的输入框；没有输入框可借（别处画的卡）就只读。
     final composer = NativeComposerScope.of(context);
+    final consume = consumeSuggestion;
+    final replace = composer?.replaceDraft;
+    final onInsert = suggestion
+        ? consume == null || replace == null
+              ? null
+              : (InsertEffect effect) {
+                  if (!consume()) return;
+                  HapticFeedback.selectionClick();
+                  replace(effect.text);
+                }
+        : composer == null
+        ? null
+        : (InsertEffect effect) {
+            HapticFeedback.selectionClick();
+            insertIntoComposer(
+              context,
+              composer.ref,
+              effect.text,
+              sessionId: composer.host.sessionId,
+              composer: composer.host,
+            );
+          };
+    final body = PluginViewBody(view: view, budget: PluginViewBudget.toolCard, onInsert: onInsert);
     return GlassSurface(
       tier: GlassTier.card,
       borderRadius: AppShape.radiusLg,
       padding: const EdgeInsets.all(DshUiMetrics.cardPadding),
-      child: PluginViewBody(
-        view: view,
-        budget: PluginViewBudget.toolCard,
-        onInsert: composer == null
-            ? null
-            : (effect) {
-                HapticFeedback.selectionClick();
-                insertIntoComposer(
-                  context,
-                  composer.ref,
-                  effect.text,
-                  sessionId: composer.host.sessionId,
-                  composer: composer.host,
-                );
-              },
-      ),
+      child: suggestion && consume != null
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                body,
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: TextButton(onPressed: () => consume(), child: Text(context.l10n.chatDismissSuggestions)),
+                ),
+              ],
+            )
+          : body,
     );
   }
 }

@@ -16,6 +16,7 @@ import '../../pets/overlay_channel.dart' show petOverlayChannelProvider;
 import '../../pets/pet_overlay_bridge.dart';
 import '../../state/adaptive_layout_state.dart';
 import '../../state/android_features.dart';
+import '../../state/composer_insert.dart';
 import '../../state/drawer_view_state.dart' show drawerSelectionProvider;
 import '../../state/quick_panel_state.dart';
 import '../../state/sessions_state.dart' show currentSessionProvider;
@@ -291,6 +292,9 @@ class _HomeShellState extends ConsumerState<HomeShell> with TickerProviderStateM
   Widget build(BuildContext context) {
     final width = _drawerWidth(context);
     final sessionId = ref.watch(currentSessionProvider);
+    ref.listen(composerInsertProvider, (_, request) {
+      if (_quickPanelOpen && request?.replaceDraft == true) _closeQuickPanel();
+    });
     final prefs = ref.watch(layoutPrefsProvider);
     // Multi-select in a list on screen (the open drawer, or the sidebar):
     // back ends it before anything else.

@@ -20,6 +20,11 @@ DshUiParse? toolCardParse(ToolChatItem item) {
   return parsePluginView(meta[toolCardViewKey], budget: PluginViewBudget.toolCard);
 }
 
+/// The opt-in is a sibling of `dsh-go/view` in the tool result's metadata.
+bool isDeckSuggestionCard(ToolChatItem item) =>
+    item.status == ToolStatus.succeeded &&
+    (item.meta is Map && (item.meta as Map)['dsh-go/card'] == 'deck.suggestions.v1');
+
 /// 生成的图片 / 视频(结果 meta 里的 `dsh-go/media`,见
 /// `docs/design/media-generation.md` §2.5):null = 没有。任何状态都读(视频
 /// 先回一张「生成中」,失败也带原因);解析按 meta 对象缓存。
